@@ -70,6 +70,10 @@ new Elysia({
   )
   .onBeforeHandle(({ set }) => {
     set.headers["X-Powered-By"] = "Cap Standalone";
+    // security headers globali: coprono dashboard, login page, asset e API,
+    // non solo le route admin (vedi capjs/README.md)
+    set.headers["X-Content-Type-Options"] = "nosniff";
+    set.headers["Content-Security-Policy"] = "default-src 'self'";
   })
   .onError(({ error, code }) => {
     const serializeError = (err) =>
