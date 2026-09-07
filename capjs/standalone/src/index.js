@@ -1,17 +1,25 @@
+import { cors } from "@elysiajs/cors";
+import { swagger } from "@elysiajs/swagger";
 import { Elysia, file } from "elysia";
-
 import { assetsServer } from "./assets.js";
 import { auth } from "./auth.js";
 import { capServer } from "./cap.js";
+import { isDemoMode } from "./demo.js";
+import { loadIPDB } from "./ipdb.js";
+import { loadRswKeypair, startRswRefresh } from "./rsw-store.js";
 import { server } from "./server.js";
+import {
+  checkCorsOrigin,
+  loadCorsDefault,
+  loadFiltering,
+  loadHeaders,
+  loadRatelimit,
+} from "./settings-cache.js";
 import { siteverifyServer } from "./siteverify.js";
-import { staticPlugin } from "@elysiajs/static";
-import { swagger } from "@elysiajs/swagger";
+import { publicStatic } from "./static.js";
 
 const serverPort = process.env.SERVER_PORT || 3000;
 const serverHostname = process.env.SERVER_HOSTNAME || "0.0.0.0";
-const [verifyHeaderName, verifyHeaderValue] = process.env.VERIFY_HEADER ? process.env.VERIFY_HEADER.split(':') : [null, null];
-const loginPageEnabled = process.env.LOGIN_PAGE_ENABLED === 'true';
 
 new Elysia({
   serve: {
@@ -48,9 +56,9 @@ new Elysia({
         ],
         info: {
           title: "Cap Standalone",
-          version: "2.0.0",
+          version: "3.0.1",
           description:
-            "API endpoints for Cap Standalone. Both Keys and Settings endpoints require an API key or session token.\n\n[Learn more](https://capjs.js.org)",
+            "API endpoints for Cap Standalone. Both Keys and Settings endpoints require an API key or session token.\n\n[Learn more](https://trycap.dev)",
         },
         securitySchemes: {
           apiKey: {
@@ -58,30 +66,81 @@ new Elysia({
           },
         },
       },
-    })
+    }),
   )
   .onBeforeHandle(({ set }) => {
     set.headers["X-Powered-By"] = "Cap Standalone";
   })
-  .use(staticPlugin())
-  .get("/", async ({ cookie, set, headers }) => {
-    // DEBUG
-    console.log("Headers in arrivo:", JSON.stringify(headers, null, 2));
-    console.log("cap_authed:", cookie.cap_authed?.value);
-    if (cookie.cap_authed?.value === "yes") {
-      return file("./public/index.html");
+  .onError(({ error, code }) => {
+    const serializeError = (err) =>
+      err instanceof Error
+        ? {
+            name: err.name,
+            message: err.message,
+            stack: err.stack,
+            ...(err.code ? { code: err.code } : {}),
+            ...(err.cause ? { cause: String(err.cause) } : {}),
+          }
+        : err;
+
+    if (["VALIDATION", "NOT_FOUND"].includes(code)) {
+      return {
+        success: false,
+        error: error.code || code || "Request rejected",
+        ...(process.env.SHOW_ERRORS === "true"
+          ? { detail: serializeError(error) }
+          : {}),
+      };
     }
-    else if (verifyHeaderName && headers[verifyHeaderName] === verifyHeaderValue) {
-      console.log("login/autologin", headers['username']);
-      return headers.username ? file("./public/autologin.html") : file("./public/login.html");
+
+    const errorId = Bun.randomUUIDv7().split("-").pop();
+
+    if (process.env.DISABLE_ERROR_LOGGING !== "true") {
+      console.error(
+        `[${error.code || "ERR"} ${errorId}]`,
+        JSON.stringify({
+          timestamp: new Date().toISOString(),
+          error: serializeError(error),
+          env: {
+            bun: process.versions.bun,
+            platform: process.platform,
+            mem: process.memoryUsage(),
+          },
+        }),
+      );
     }
-    else if (loginPageEnabled) {
-      return file("./public/login.html");
-    }
-    else {
-      set.status = 403;
-      return 'forbidden';
-    }
+
+    return {
+      success: false,
+      error: error.code || "Internal server error",
+      detail:
+        process.env.SHOW_ERRORS === "true"
+          ? serializeError(error)
+          : {
+              troubleshooting:
+                "http://trycap.dev/guide/standalone/options.html#error-messages",
+              id: errorId,
+            },
+    };
+  })
+  .use(
+    cors({
+      origin: (request) => {
+        const path = new URL(request.url).pathname;
+        if (path === "/assets" || path.startsWith("/assets/")) return true;
+        return checkCorsOrigin(request);
+      },
+      methods: ["GET", "POST"],
+    }),
+  )
+  .use(publicStatic)
+  .get("/", async ({ cookie }) => {
+    if (isDemoMode()) return file("./public/index.html");
+    return file(
+      cookie.cap_authed?.value === "yes"
+        ? "./public/index.html"
+        : "./public/login.html",
+    );
   })
   .use(auth)
   .use(server)
@@ -91,3 +150,13 @@ new Elysia({
   .listen(serverPort);
 
 console.log(`🧢 Cap running on http://${serverHostname}:${serverPort}`);
+
+await loadHeaders();
+await loadRatelimit();
+await loadCorsDefault();
+await loadFiltering();
+loadRswKeypair().catch((e) =>
+  console.warn("[cap] RSW keypair load:", e.message),
+);
+startRswRefresh();
+loadIPDB().catch((e) => console.warn("[cap] IP DB load:", e.message));

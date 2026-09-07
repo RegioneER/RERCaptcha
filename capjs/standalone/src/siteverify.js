@@ -1,82 +1,65 @@
-import { cors } from "@elysiajs/cors";
 import { Elysia } from "elysia";
 
 import { db } from "./db.js";
-import { ratelimitGenerator } from "./ratelimit.js";
-
-const blockedIPs = new Map();
-
-setInterval(() => {
-	const now = Date.now();
-	for (const [ip, unblockTime] of blockedIPs.entries()) {
-		if (now >= unblockTime) {
-			blockedIPs.delete(ip);
-		}
-	}
-}, 2000);
+import { hashSecret, verifySecret } from "./secret-hash.js";
 
 export const siteverifyServer = new Elysia({
-	detail: {
-		tags: ["Challenges"],
-	},
-})
-	.use(
-		cors({
-			origin: process.env.CORS_ORIGIN?.split(",") || true,
-			methods: ["POST"],
-		}),
-	)
-	.post("/:siteKey/siteverify", async ({ body, set, params, request, server }) => {
-		const ip = ratelimitGenerator(request, server);
-		const now = Date.now();
-		
-		const unblockTime = blockedIPs.get(ip);
-		if (unblockTime && now < unblockTime) {
-			const retryAfter = Math.ceil((unblockTime - now) / 1000);
-			set.status = 429;
-			set.headers["Retry-After"] = retryAfter.toString();
-			set.headers["X-RateLimit-Limit"] = "1";
-			set.headers["X-RateLimit-Remaining"] = "0";
-			set.headers["X-RateLimit-Reset"] = Math.ceil(unblockTime / 1000).toString();
-			return { error: "You were temporarily for using an invalid secret key. Please try again later." };
-		}
+  detail: {
+    tags: ["Challenges"],
+  },
+}).post("/:siteKey?/siteverify", async ({ body, set, params }) => {
+  const sitekeyraw = params.siteKey || false;
+  const { secret, response } = body;
+  let sitekey = false;
+  if (response.split(":").length !== 3) {
+    set.status = 400;
+    return { success: false, error: "Missing required parameters" };
+  }
+  if (sitekeyraw) {
+    sitekey = sitekeyraw;
+  } else {
+    sitekey = response.split(":")[0];
+  }
+  if (sitekeyraw && !response.startsWith(sitekeyraw)) {
+    set.status = 404;
+    return { success: false, error: "Invalid site key or secret" };
+  }
+  if (!secret || !response) {
+    set.status = 400;
+    return { success: false, error: "Missing required parameters" };
+  }
 
-		const sitekey = params.siteKey;
-		const { secret, response } = body;
+  const secretHash = await db.hget(`key:${sitekey}`, "secretHash");
 
-		if (!sitekey || !secret || !response) {
-			set.status = 400;
-			return { error: "Missing required parameters" };
-		}
+  if (!secretHash || !secret) {
+    set.status = 404;
+    return { success: false, error: "Invalid site key or secret" };
+  }
 
-		const [keyData] = await db`SELECT * FROM keys WHERE siteKey = ${sitekey}`;
-		const keyHash = keyData?.secretHash;
-		if (!keyHash || !secret) {
-			set.status = 404;
-			return { error: "Invalid site key or secret" };
-		}
+  const { valid, legacy } = await verifySecret(secret, secretHash);
 
-		const isValidSecret = await Bun.password.verify(secret, keyHash);
-		
-		if (!isValidSecret) {
-			blockedIPs.set(ip, now + 250);
-			set.status = 403;
-			return { error: "Invalid site key or secret" };
-		}
+  if (!valid) {
+    set.status = 403;
+    return { success: false, error: "Invalid site key or secret" };
+  }
 
-		const [token] = await db`SELECT * FROM tokens WHERE siteKey = ${params.siteKey} AND token = ${response}`;
+  // Upgrade legacy password-KDF hashes to SHA-256
+  if (legacy) {
+    await db.hset(`key:${sitekey}`, "secretHash", hashSecret(secret));
+  }
 
-		if (!token) {
-			set.status = 404;
-			return { error: "Token not found" };
-		}
+  const tokenKey = `token:${response}`;
+  const expires = await db.getdel(tokenKey);
 
-		if (token.expires < Date.now()) {
-			await db`DELETE FROM tokens WHERE siteKey = ${params.siteKey} AND token = ${response}`;
-			set.status = 403;
-			return { error: "Token expired" };
-		}
+  if (!expires) {
+    set.status = 404;
+    return { success: false, error: "Token not found" };
+  }
 
-		await db`DELETE FROM tokens WHERE siteKey = ${params.siteKey} AND token = ${response}`;
-		return { success: true };
-	});
+  if (Number(expires) < Date.now()) {
+    set.status = 403;
+    return { success: false, error: "Token expired" };
+  }
+
+  return { success: true };
+});
