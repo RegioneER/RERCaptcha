@@ -4,6 +4,9 @@ import { db } from "./db.js";
 import valkeyRateLimit from "./ratelimit.js";
 
 const { ADMIN_KEY, DEMO_MODE } = process.env;
+const [verifyHeaderName, verifyHeaderValue] = process.env.VERIFY_HEADER
+  ? process.env.VERIFY_HEADER.split(":")
+  : [null, null];
 
 if (DEMO_MODE !== "true") {
   if (!ADMIN_KEY) throw new Error("auth: Admin key missing. Please add one");
@@ -22,14 +25,21 @@ export const auth = new Elysia({
       max: 200, // this is intentionally permissive
     }),
   )
-  .post("/login", async ({ body, set, cookie }) => {
+  .post("/login", async ({ body, set, cookie, headers }) => {
     const { admin_key } = body;
 
-    const hash = (v) => new Bun.CryptoHasher("sha256").update(v).digest();
+    const isAutologin =
+      verifyHeaderName &&
+      headers[verifyHeaderName] === verifyHeaderValue &&
+      admin_key === "__AUTOLOGIN__";
 
-    if (!crypto.timingSafeEqual(hash(admin_key), hash(ADMIN_KEY))) {
-      set.status = 401;
-      return { success: false };
+    if (!isAutologin) {
+      const hash = (v) => new Bun.CryptoHasher("sha256").update(v).digest();
+
+      if (!crypto.timingSafeEqual(hash(admin_key), hash(ADMIN_KEY))) {
+        set.status = 401;
+        return { success: false };
+      }
     }
 
     const session_token = randomBytes(30).toString("hex");

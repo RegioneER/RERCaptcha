@@ -20,6 +20,10 @@ import { publicStatic } from "./static.js";
 
 const serverPort = process.env.SERVER_PORT || 3000;
 const serverHostname = process.env.SERVER_HOSTNAME || "0.0.0.0";
+const [verifyHeaderName, verifyHeaderValue] = process.env.VERIFY_HEADER
+  ? process.env.VERIFY_HEADER.split(":")
+  : [null, null];
+const loginPageEnabled = process.env.LOGIN_PAGE_ENABLED === "true";
 
 new Elysia({
   serve: {
@@ -138,13 +142,18 @@ new Elysia({
     }),
   )
   .use(publicStatic)
-  .get("/", async ({ cookie }) => {
+  .get("/", async ({ cookie, set, headers }) => {
     if (isDemoMode()) return file("./public/index.html");
-    return file(
-      cookie.cap_authed?.value === "yes"
-        ? "./public/index.html"
-        : "./public/login.html",
-    );
+    if (cookie.cap_authed?.value === "yes") return file("./public/index.html");
+    if (verifyHeaderName && headers[verifyHeaderName] === verifyHeaderValue) {
+      // autologin via header impostato dal reverse proxy IAM
+      return headers.username
+        ? file("./public/autologin.html")
+        : file("./public/login.html");
+    }
+    if (loginPageEnabled) return file("./public/login.html");
+    set.status = 403;
+    return "forbidden";
   })
   .use(auth)
   .use(server)
