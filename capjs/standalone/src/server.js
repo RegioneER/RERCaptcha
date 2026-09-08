@@ -35,6 +35,8 @@ const keyDefaults = {
   blockAutomatedBrowsers: false,
   rsw: false,
   rswT: 75_000,
+  expiresMS: 60_000, // TTL della challenge (1 minuto)
+  tokenTTL: 120_000, // TTL del token di verifica (2 minuti)
 };
 
 const sumSolutions = (data, startBucket, endBucket) => {
@@ -459,6 +461,8 @@ export const server = new Elysia({
         requiredHeaders,
         rsw,
         rswT,
+        expiresMS,
+        tokenTTL,
       } = body;
 
       const config = {
@@ -498,6 +502,8 @@ export const server = new Elysia({
             : (existingConfig.requiredHeaders ?? null),
         rsw: rsw ?? existingConfig.rsw ?? false,
         rswT: rswT ?? existingConfig.rswT ?? keyDefaults.rswT,
+        expiresMS: expiresMS ?? existingConfig.expiresMS ?? keyDefaults.expiresMS,
+        tokenTTL: tokenTTL ?? existingConfig.tokenTTL ?? keyDefaults.tokenTTL,
       };
 
       const currentName = await db.hget(`key:${params.siteKey}`, "name");
@@ -532,6 +538,8 @@ export const server = new Elysia({
         requiredHeaders: t.Optional(t.Union([t.Array(t.String()), t.Null()])),
         rsw: t.Optional(t.Boolean()),
         rswT: t.Optional(t.Number({ minimum: 10000, maximum: 300000 })),
+        expiresMS: t.Optional(t.Number({ minimum: 10000, maximum: 3600000 })),
+        tokenTTL: t.Optional(t.Number({ minimum: 10000, maximum: 86400000 })),
       }),
       detail: {
         tags: ["Keys"],

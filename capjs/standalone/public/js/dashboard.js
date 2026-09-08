@@ -567,6 +567,16 @@ function renderKeyDetail() {
               <input type="number" id="cfgChallengeCount" value="${key.config.challengeCount}" min="1" max="500">
             </div>
           </div>
+          <div class="edit-row">
+            <div class="edit-field">
+              <label>Challenge expiry (ms)</label>
+              <input type="number" id="cfgExpiresMS" value="${key.config.expiresMS ?? 60000}" min="10000" max="3600000" step="1000">
+            </div>
+            <div class="edit-field">
+              <label>Token TTL (ms)</label>
+              <input type="number" id="cfgTokenTTL" value="${key.config.tokenTTL ?? 120000}" min="10000" max="86400000" step="1000">
+            </div>
+          </div>
           <div class="config-row" id="rswTField" style="display:${key.config.rsw ? "flex" : "none"}">
             <div class="range-field" style="flex:1">
               <label>RSW difficulty <span class="range-value" id="rswTHint">${(key.config?.rswT ?? 75000).toLocaleString()}</span></label>
@@ -803,6 +813,8 @@ function renderKeyDetail() {
     const blockAutomatedBrowsers = document.getElementById("cfgBlockAutomatedBrowsers").checked;
     const rsw = document.getElementById("cfgChallengeProtocol").value === "rsw";
     const rswT = parseInt(document.getElementById("cfgRswT").value, 10);
+    const expiresMS = parseInt(document.getElementById("cfgExpiresMS").value, 10);
+    const tokenTTL = parseInt(document.getElementById("cfgTokenTTL").value, 10);
     const dirty =
       name !== key.name ||
       difficulty !== key.config.difficulty ||
@@ -811,7 +823,9 @@ function renderKeyDetail() {
       obfuscationLevel !== (key.config.obfuscationLevel ?? 5) ||
       blockAutomatedBrowsers !== key.config.blockAutomatedBrowsers ||
       rsw !== !!key.config.rsw ||
-      rswT !== (key.config.rswT ?? 75000);
+      rswT !== (key.config.rswT ?? 75000) ||
+      expiresMS !== (key.config.expiresMS ?? 60000) ||
+      tokenTTL !== (key.config.tokenTTL ?? 120000);
     document.getElementById("saveMainConfigBtn").disabled = !dirty;
   }
 
@@ -841,7 +855,7 @@ function renderKeyDetail() {
     checkSecurityDirty();
   }
 
-  for (const id of ["cfgName", "cfgDifficulty", "cfgChallengeCount"]) {
+  for (const id of ["cfgName", "cfgDifficulty", "cfgChallengeCount", "cfgExpiresMS", "cfgTokenTTL"]) {
     document.getElementById(id)?.addEventListener("input", checkMainDirty);
   }
   for (const id of ["cfgRatelimitMax", "cfgRatelimitDuration"]) {
@@ -2345,6 +2359,8 @@ async function saveMainConfig() {
   const blockAutomatedBrowsers = document.getElementById("cfgBlockAutomatedBrowsers").checked;
   const rsw = document.getElementById("cfgChallengeProtocol").value === "rsw";
   const rswT = parseInt(document.getElementById("cfgRswT").value, 10);
+  const expiresMS = parseInt(document.getElementById("cfgExpiresMS").value, 10);
+  const tokenTTL = parseInt(document.getElementById("cfgTokenTTL").value, 10);
 
   if (!name || difficulty < 1 || challengeCount < 1) {
     showModal(
@@ -2379,6 +2395,8 @@ async function saveMainConfig() {
     blockAutomatedBrowsers,
     rsw,
     rswT,
+    expiresMS,
+    tokenTTL,
   });
 
   if (res.success) {
@@ -2393,6 +2411,8 @@ async function saveMainConfig() {
       blockAutomatedBrowsers,
       rsw,
       rswT,
+      expiresMS,
+      tokenTTL,
     };
     renderKeysList(searchInput.value);
   } else {

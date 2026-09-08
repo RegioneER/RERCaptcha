@@ -387,7 +387,7 @@ export const capServer = new Elysia({
             : ["rsw"],
           keypair,
           t,
-          expiresMs: CHALLENGE_TTL_MS,
+          expiresMs: keyConfig.expiresMS || CHALLENGE_TTL_MS,
           scope: params.siteKey,
           instrumentation: instrumentationOpts,
         };
@@ -396,7 +396,7 @@ export const capServer = new Elysia({
           challengeCount: keyConfig.challengeCount ?? 80,
           challengeSize: keyConfig.saltSize ?? 32,
           challengeDifficulty: keyConfig.difficulty ?? 4,
-          expiresMs: CHALLENGE_TTL_MS,
+          expiresMs: keyConfig.expiresMS || CHALLENGE_TTL_MS,
           scope: params.siteKey,
           instrumentation: instrumentationOpts,
         };
@@ -428,11 +428,18 @@ export const capServer = new Elysia({
       return { error: "Missing required fields" };
     }
 
-    const jwtSecret = await db.hget(`key:${params.siteKey}`, "jwtSecret");
+    const fields = await db.hmget(`key:${params.siteKey}`, [
+      "config",
+      "jwtSecret",
+    ]);
+    const jwtSecret = fields[1];
     if (!jwtSecret) {
       set.status = 404;
       return { error: "Invalid site key" };
     }
+
+    const keyConfig = fields[0] ? JSON.parse(fields[0]) : {};
+    const tokenTtlMs = keyConfig.tokenTTL || TOKEN_TTL_MS;
 
     const result = await coreValidateChallenge(
       jwtSecret,
@@ -461,7 +468,7 @@ export const capServer = new Elysia({
           const redeemSecret = randomBytes(15).toString("hex");
           return `${params.siteKey}:${redeemId}:${redeemSecret}`;
         },
-        tokenTtlMs: TOKEN_TTL_MS,
+        tokenTtlMs,
       },
     );
 
@@ -541,7 +548,7 @@ export const capServer = new Elysia({
 
     const redeemToken = result.token;
     const tokenExpires = result.expires;
-    const tokenTtlSecs = Math.ceil(TOKEN_TTL_MS / 1000);
+    const tokenTtlSecs = Math.ceil(tokenTtlMs / 1000);
     await db.set(`token:${redeemToken}`, String(tokenExpires));
     await db.expire(`token:${redeemToken}`, tokenTtlSecs);
 
