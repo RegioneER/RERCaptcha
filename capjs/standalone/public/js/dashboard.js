@@ -447,7 +447,7 @@ function renderKeyDetail() {
               <option value="alltime" ${key.chartData?.duration === "alltime" ? "selected" : ""}>All time</option>
             </select>
             <span class="date-range" id="dateRange">${getDateRange(key.chartData)}</span>
-            <button class="refresh-btn" id="refreshBtn">
+            <button class="refresh-btn" id="refreshBtn" aria-label="Refresh">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg>
             </button>
           </div>
@@ -490,10 +490,10 @@ function renderKeyDetail() {
               <div class="insight-panel-header">
                 <h3 class="insight-panel-title">Location</h3>
                 <div class="insight-view-toggle" id="locationViewToggle">
-                  <button class="insight-toggle-btn ${!locationMapMode ? "active" : ""}" data-view="list" title="List view">
+                  <button class="insight-toggle-btn ${!locationMapMode ? "active" : ""}" data-view="list" title="List view" aria-label="List view">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
                   </button>
-                  <button class="insight-toggle-btn ${locationMapMode ? "active" : ""}" data-view="map" title="Map view">
+                  <button class="insight-toggle-btn ${locationMapMode ? "active" : ""}" data-view="map" title="Map view" aria-label="Map view">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                   </button>
                 </div>
@@ -505,12 +505,12 @@ function renderKeyDetail() {
             <div class="insight-panel" id="networksPanel">
               <div class="insight-panel-header">
                 <h3 class="insight-panel-title">Networks</h3>
-                <button class="insight-search-btn" id="networksSearchBtn" title="Search networks">
+                <button class="insight-search-btn" id="networksSearchBtn" title="Search networks" aria-label="Search networks">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                 </button>
               </div>
               <div class="insight-search-bar" id="networksSearchBar" style="display:none">
-                <input type="text" id="networksSearchInput" placeholder="Filter networks\u2026">
+                <input type="text" id="networksSearchInput" placeholder="Filter networks\u2026" aria-label="Filter networks">
               </div>
               <div class="insight-panel-body" id="networksBody">
                 <div class="insight-loading"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-loader-2"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a9 9 0 1 0 9 9" /></svg></div>
@@ -2515,15 +2515,46 @@ function deleteKey() {
   );
 }
 
+let modalPreviouslyFocused = null;
+
+function getFocusableElements(container) {
+  return Array.from(
+    container.querySelectorAll(
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((el) => el.offsetParent !== null);
+}
+
+function focusTrapHandler(e) {
+  if (e.key !== "Tab") return;
+  const overlay = document.querySelector(".modal-overlay");
+  if (!overlay) return;
+  const focusable = getFocusableElements(overlay);
+  if (!focusable.length) {
+    e.preventDefault();
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
 function createModal(title, content, isSettings = false, isWide = false) {
   closeModal();
+  modalPreviouslyFocused = document.activeElement;
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
   overlay.innerHTML = `
-    <div class="modal ${isSettings ? "wide" : ""} ${isWide ? "wide" : ""}">
+    <div class="modal ${isSettings ? "wide" : ""} ${isWide ? "wide" : ""}" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">
       <div class="modal-header">
-        <h2>${title}</h2>
-        <button class="modal-close">
+        <h2 id="modalTitle">${title}</h2>
+        <button class="modal-close" aria-label="Close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
@@ -2537,6 +2568,9 @@ function createModal(title, content, isSettings = false, isWide = false) {
     if (e.target === overlay) closeModal();
   });
   document.addEventListener("keydown", escapeHandler);
+  document.addEventListener("keydown", focusTrapHandler);
+  const focusable = getFocusableElements(overlay);
+  (focusable[0] || overlay.querySelector(".modal")).focus();
   return overlay;
 }
 
@@ -2548,7 +2582,15 @@ function closeModal() {
   const overlay = document.querySelector(".modal-overlay");
   if (overlay) {
     document.removeEventListener("keydown", escapeHandler);
+    document.removeEventListener("keydown", focusTrapHandler);
     overlay.remove();
+    if (
+      modalPreviouslyFocused &&
+      typeof modalPreviouslyFocused.focus === "function"
+    ) {
+      modalPreviouslyFocused.focus();
+    }
+    modalPreviouslyFocused = null;
   }
 }
 

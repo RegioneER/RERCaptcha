@@ -2754,3 +2754,29 @@ input[type="range"]::-moz-range-progress {
 a {
   text-underline-offset: 2px;
 }
+
+/* visibile solo agli screen reader, per heading/label semantici che non
+   devono comparire nel layout visivo */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* rispetta la preferenza di sistema per il ridotto movimento (WCAG 2.3.3) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
