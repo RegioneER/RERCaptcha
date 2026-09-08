@@ -1,25 +1,50 @@
 <!doctype html>
 <html lang="it">
   <head>
-      {% block title %}<title>RERCaptcha DEMO</title>{% endblock %}
-      <link href="/static/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
-      <style>
-        cap-widget {
-          --cap-color: #000;
-        }
-      </style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% block title %}<title>RERCaptcha — demo e guida all'integrazione</title>{% endblock %}
+    <link href="{{ url_for('static', filename='bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='pygments.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='docs.css') }}" rel="stylesheet">
   </head>
   <body>
     <header class="container">
-       <h1 class="pb-2 border-bottom">RERCaptcha</h1>
+      <h1 class="pb-2 border-bottom">RERCaptcha</h1>
+      <nav aria-label="Sezioni della demo" class="mb-4">
+        <ul class="nav nav-pills">
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}">Indice</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('visible_it') }}">Visibile</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('visible_en') }}">Non localizzato</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('invisible') }}">Invisibile</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('errori') }}">Scenari di errore</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('guida') }}">Guida all'integrazione</a></li>
+        </ul>
+      </nav>
     </header>
-    <section class="container">
-    {% block content %}{% endblock %}
-    </section>
-    <script nonce="{{ request.csp_nonce }}">
-      window.CAP_CUSTOM_WASM_URL = "{{ capjs_public_url }}/assets/cap_wasm.js";
-    </script>
-    <script nonce="{{ request.csp_nonce }}" src="{{ capjs_public_url }}/assets/widget.js"></script>
+
+    <main class="container">
+      {% if configurazione_mancante %}
+      <div class="alert alert-danger" role="alert">
+        <strong>Configurazione incompleta.</strong> Le variabili
+        <code>SITE_KEY</code> e <code>SECRET_KEY</code> non sono impostate e le
+        chiavi generate da <code>demo-init</code> non sono leggibili. Le pagine
+        con captcha non funzioneranno.
+      </div>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="container mt-5 pt-3 border-top text-body-secondary">
+      <p>
+        RERCaptcha si basa su
+        <a href="https://github.com/tiagozip/cap">CapJS</a>, distribuito con
+        licenza Apache-2.0.
+      </p>
+    </footer>
+
+    {% include 'partials/loader.html' %}
+    <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='docs.js') }}"></script>
     {% block script %}{% endblock %}
   </body>
 </html>

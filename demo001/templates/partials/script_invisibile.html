@@ -1,0 +1,31 @@
+{#
+  Risoluzione programmatica del captcha (modalità invisibile).
+
+  Variabili attese: capjs_public_url, site_key, csp_nonce.
+
+  Da sapere: `new Cap(config)` senza secondo argomento crea il widget con
+  display:none e lo appende a document.documentElement, quindi fuori dalla
+  form. Di conseguenza il token va copiato a mano nel campo hidden, come si
+  vede qui sotto. Passando un secondo argomento — new Cap(config, elemento) —
+  puoi invece pilotare un <cap-widget> già presente nel DOM.
+#}
+<script nonce="{{ csp_nonce }}">
+  const cap = new Cap({ apiEndpoint: '{{ capjs_public_url }}/{{ site_key }}/' });
+
+  cap.solve().then(({ success, token }) => {
+    if (!success) {
+      console.error('Risoluzione del captcha non riuscita');
+      return;
+    }
+    document.getElementById('capjs-token').value = token;
+    document.getElementById('capjs-button').disabled = false;
+  });
+
+  // Alla scadenza il widget si azzera da sé e svuota il token: senza questo
+  // handler il pulsante resterebbe abilitato e l'invio fallirebbe con un
+  // "token mancante" senza spiegazione.
+  cap.addEventListener('reset', () => {
+    document.getElementById('capjs-token').value = '';
+    document.getElementById('capjs-button').disabled = true;
+  });
+</script>

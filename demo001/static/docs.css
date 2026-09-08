@@ -1,0 +1,207 @@
+/* Stili della demo e della guida RERCaptcha.
+ *
+ * I colori dei token del codice stanno in pygments.css, generato una tantum e
+ * versionato. Per rigenerarlo:
+ *
+ *   python3 -c "
+ *   from pygments.formatters import HtmlFormatter
+ *   sel = '.code-block pre code'
+ *   righe = [r for r in HtmlFormatter(style='default').get_style_defs(sel).splitlines()
+ *            if r.startswith(sel)]
+ *   print(chr(10).join(righe))"
+ */
+
+/* --- Widget ------------------------------------------------------------- */
+
+/* Il widget vive in shadow DOM: i normali selettori non lo raggiungono, le
+   custom property si'. L'elenco completo e' in /guida#stile. */
+cap-widget {
+  --cap-color: #212121;
+  --cap-border-radius: 6px;
+}
+
+/* --- Blocchi di codice -------------------------------------------------- */
+
+.code-block {
+  margin: 0 0 1.5rem;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f8f8f8;
+}
+
+.code-block > figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.4rem 0.75rem;
+  background: #eceef0;
+  border-bottom: 1px solid #dee2e6;
+  font-size: 0.8125rem;
+}
+
+.code-block .code-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.code-block .code-lang {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #495057;
+}
+
+.code-block .code-file {
+  color: #6c757d;
+  background: none;
+  padding: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Un blocco che scorre in orizzontale deve essere raggiungibile da tastiera
+   (WCAG 2.1.1), da cui il tabindex nella macro e un focus ben visibile. */
+.code-block pre {
+  margin: 0;
+  padding: 0.9rem 0.75rem;
+  overflow-x: auto;
+  white-space: pre;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.code-block pre:focus-visible {
+  outline: 3px solid #0d6efd;
+  outline-offset: -3px;
+}
+
+.code-block pre code {
+  background: none;
+  padding: 0;
+  color: #212121;
+}
+
+.code-copia:not([hidden]) {
+  flex: none;
+}
+
+/* --- Legenda dei segnaposto -------------------------------------------- */
+
+.legenda-segnaposto {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1rem;
+  margin-bottom: 1.25rem;
+  padding: 0.9rem 1rem;
+  border-left: 4px solid #6c757d;
+  background: #f8f9fa;
+  font-size: 0.9375rem;
+}
+
+.legenda-segnaposto dt {
+  font-weight: 400;
+}
+
+.legenda-segnaposto dd {
+  margin: 0;
+}
+
+@media (max-width: 575px) {
+  .legenda-segnaposto {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+  .legenda-segnaposto dd {
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* --- Guida -------------------------------------------------------------- */
+
+.guida-indice {
+  font-size: 0.9375rem;
+}
+
+@media (min-width: 992px) {
+  .guida-indice {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
+}
+
+.guida-sezione {
+  scroll-margin-top: 1rem;
+  margin-bottom: 3rem;
+}
+
+.guida-sezione h2 {
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+/* Tabelle di riferimento: molte colonne, testo lungo. */
+.tabella-riferimento {
+  font-size: 0.9375rem;
+}
+
+.tabella-riferimento code {
+  overflow-wrap: anywhere;
+}
+
+.tabella-scroll {
+  overflow-x: auto;
+}
+
+/* Evidenzia le chiavi i18n che alimentano il nome accessibile. */
+.tabella-riferimento .riga-aria {
+  background-color: #fff8e1;
+}
+
+/* --- Riquadri di avvertenza -------------------------------------------- */
+
+.nota {
+  padding: 0.9rem 1rem;
+  margin-bottom: 1.25rem;
+  border-left: 4px solid #0d6efd;
+  background: #f1f6ff;
+}
+
+.nota-attenzione {
+  border-left-color: #b8860b;
+  background: #fff8e1;
+}
+
+.nota-pericolo {
+  border-left-color: #b02a37;
+  background: #fdf1f2;
+}
+
+.nota > :last-child {
+  margin-bottom: 0;
+}
+
+/* --- Esito della verifica ---------------------------------------------- */
+
+.esito-dettaglio {
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.esito-dettaglio dt {
+  color: #495057;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% from 'macros/tabelle.html' import tabella_risposte %}
+
+{% block title %}<title>Scenari di errore — RERCaptcha</title>{% endblock %}
+
+{% block content %}
+<nav aria-label="Percorso di navigazione">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">RERCaptcha</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Scenari di errore</li>
+  </ol>
+</nav>
+
+<h2>Scenari di errore</h2>
+<p class="lead">
+  Le risposte che <code>siteverify</code> restituisce davvero, generate dal
+  vivo. Le due cause più frequenti di problemi in un'integrazione reale —
+  token già usato e token scaduto — non sono visibili da nessun'altra parte
+  in questa demo.
+</p>
+
+<div class="nota nota-pericolo">
+  <p class="mb-0">
+    Questa pagina invia deliberatamente richieste con chiave segreta errata,
+    il che fa bloccare per 250 ms l'IP di questo server presso il servizio
+    captcha. È una pagina a scopo didattico: va disattivata in produzione
+    (variabile <code>DEMO_ERRORI_ENABLED</code>).
+  </p>
+</div>
+
+{% if not demo_errori_enabled %}
+<div class="alert alert-warning" role="alert">
+  Questa pagina è disattivata su questa istanza
+  (<code>DEMO_ERRORI_ENABLED=false</code>).
+</div>
+{% else %}
+
+{% if esito %}
+<div class="alert {{ 'alert-success' if esito.ok else 'alert-danger' }}"
+     role="{{ 'status' if esito.ok else 'alert' }}"
+     aria-live="{{ 'polite' if esito.ok else 'assertive' }}">
+  <p class="mb-2"><strong>Scenario:</strong> {{ esito.scenario_label }}</p>
+  <dl class="row mb-0 esito-dettaglio">
+    <dt class="col-sm-3">Risposta</dt>
+    <dd class="col-sm-9">
+      {% if esito.status %}
+      <code>HTTP {{ esito.status }} {{ esito.body | tojson }}</code>
+      {% else %}
+      <em>nessuna risposta dal servizio</em>
+      {% endif %}
+    </dd>
+    <dt class="col-sm-3">Messaggio per l'utente</dt>
+    <dd class="col-sm-9">{{ esito.errore or "Captcha verificato con successo." }}</dd>
+  </dl>
+</div>
+{% endif %}
+
+<form method="post" id="form-scenari">
+  <div class="mb-4">
+    <p class="form-label mb-2">
+      Widget principale — usalo per tutti gli scenari tranne "Token scaduto":
+    </p>
+    {% include 'partials/widget_visibile.html' %}
+  </div>
+
+  {% if site_key_short_ttl %}
+  <div class="mb-4 nota nota-attenzione">
+    <p>
+      <strong>Widget a scadenza breve (10 secondi)</strong> — usalo solo per
+      lo scenario "Token scaduto". Risolvilo, poi attendi: il widget stesso
+      svuoterà il proprio campo alla scadenza (vedi
+      <a href="{{ url_for('guida') }}#token">token: monouso e scadenza</a>),
+      ma il token viene comunque catturato qui sotto per poter dimostrare la
+      risposta del server.
+    </p>
+    <cap-widget
+      id="cap-breve"
+      data-cap-api-endpoint="{{ capjs_public_url }}/{{ site_key_short_ttl }}/"
+      data-cap-hidden-field-name="capjs-token-breve"
+      data-cap-i18n-initial-state="Non sono un robot (scade in 10s)"
+      data-cap-i18n-verify-aria-label="Premi per confermare che non sei un robot, scadenza breve"
+    ></cap-widget>
+    <input type="hidden" name="capjs-token-scaduto-catturato" id="token-scaduto-catturato">
+    <p id="stato-scaduto" class="form-text mt-2 mb-0">
+      Risolvi il widget qui sopra, poi attendi.
+    </p>
+  </div>
+  {% endif %}
+
+  <div class="d-flex flex-wrap gap-2">
+    <button type="submit" name="scenario" value="ok" class="btn btn-outline-success">
+      Verifica normale
+    </button>
+    <button type="submit" name="scenario" value="riuso" class="btn btn-outline-warning">
+      Riusa lo stesso token due volte
+    </button>
+    {% if site_key_short_ttl %}
+    <button type="submit" name="scenario" value="scaduto" id="btn-scaduto" class="btn btn-outline-warning" disabled>
+      Token scaduto
+    </button>
+    {% endif %}
+    <button type="submit" name="scenario" value="mancante" class="btn btn-outline-secondary">
+      Invia senza token
+    </button>
+    <button type="submit" name="scenario" value="contraffatto" class="btn btn-outline-secondary">
+      Token inventato
+    </button>
+    <button type="submit" name="scenario" value="secret" class="btn btn-outline-danger">
+      Chiave segreta errata
+    </button>
+  </div>
+</form>
+
+{% if site_key_short_ttl %}
+<script nonce="{{ csp_nonce }}">
+  (function () {
+    var widgetBreve = document.getElementById('cap-breve');
+    var catturato = document.getElementById('token-scaduto-catturato');
+    var stato = document.getElementById('stato-scaduto');
+    var bottone = document.getElementById('btn-scaduto');
+    // Un po' più del tokenTTL configurato per questa chiave (10s): garantisce
+    // che il server l'abbia già considerato scaduto quando lo invii.
+    var ATTESA_MS = 11000;
+
+    widgetBreve.addEventListener('solve', function (e) {
+      // Il widget scrive il token nel proprio campo interno, ma quel campo
+      // verrà svuotato automaticamente dal widget stesso alla scadenza:
+      // lo copiamo qui per poterlo inviare comunque, esattamente come
+      // accadrebbe con un form reale rimasto aperto a lungo (vedi
+      // /guida#token).
+      catturato.value = e.detail.token;
+      bottone.disabled = true;
+      stato.textContent = 'Token catturato. Attendi la scadenza lato server...';
+      setTimeout(function () {
+        stato.textContent = 'Scaduto lato server: ora puoi inviarlo.';
+        bottone.disabled = false;
+      }, ATTESA_MS);
+    });
+
+    widgetBreve.addEventListener('reset', function () {
+      stato.textContent = 'Il widget si è azzerato da sé: è la scadenza lato client di cui parla la guida. Risolvilo di nuovo.';
+    });
+  })();
+</script>
+{% endif %}
+
+{% endif %}
+
+<h3 class="mt-5">Tabella di riferimento</h3>
+<p>Le stesse risposte, spiegate una per una.</p>
+{{ tabella_risposte(riferimenti.SITEVERIFY_RESPONSES) }}
+{% endblock %}

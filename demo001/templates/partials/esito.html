@@ -1,0 +1,46 @@
+{#
+  Esito della verifica lato server.
+
+  Il successo usa role="status" con aria-live="polite" perché non interrompe
+  ciò che lo screen reader sta leggendo; l'errore usa role="alert", che invece
+  è assertivo, perché richiede un intervento dell'utente.
+
+  I dettagli grezzi (token, corpo della risposta) sono qui perché questa è una
+  demo e servono a capire cosa succede. In un'applicazione reale vanno nei
+  log, non in pagina: possono rivelare informazioni sulla configurazione.
+#}
+{% if esito %}
+{% if esito.ok %}
+<div class="alert alert-success" role="status" aria-live="polite">
+  <p class="mb-2"><strong>Captcha verificato.</strong> La form è stata accettata.</p>
+  <dl class="row mb-0 esito-dettaglio">
+    <dt class="col-sm-3">Campo di testo</dt>
+    <dd class="col-sm-9">{{ esito.testo or "(vuoto)" }}</dd>
+    <dt class="col-sm-3">Risposta</dt>
+    <dd class="col-sm-9"><code>HTTP {{ esito.status }} {{ esito.body | tojson }}</code></dd>
+  </dl>
+</div>
+{% else %}
+<div class="alert alert-danger" role="alert">
+  <p class="mb-2"><strong>Captcha non valido.</strong> {{ esito.errore }}</p>
+  <dl class="row mb-0 esito-dettaglio">
+    <dt class="col-sm-3">Risposta</dt>
+    <dd class="col-sm-9">
+      {%- if esito.status %}
+      <code>HTTP {{ esito.status }} {{ esito.body | tojson }}</code>
+      {%- else %}
+      <em>nessuna risposta dal servizio</em>
+      {%- endif %}
+    </dd>
+    <dt class="col-sm-3">Token inviato</dt>
+    <dd class="col-sm-9">
+      <code>{{ esito.token or "(nessuno)" }}</code>
+    </dd>
+  </dl>
+  <p class="mt-2 mb-0">
+    Il significato di ogni codice di risposta è nella
+    <a href="{{ url_for('guida') }}#risposte">tabella delle risposte</a>.
+  </p>
+</div>
+{% endif %}
+{% endif %}

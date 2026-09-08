@@ -1,0 +1,27 @@
+{#
+  Form protetta da captcha visibile.
+
+  Variabili attese: capjs_public_url, site_key, localizzato.
+
+  Il widget crea da sé, al proprio interno, il campo hidden indicato da
+  data-cap-hidden-field-name e vi scrive il token: basta che si trovi dentro
+  la <form> perché il valore venga inviato insieme agli altri campi.
+
+  Nota sul testo esplicativo: non è una <label>. Il widget è un custom element
+  in shadow DOM, e <label for="..."> non si associa mai a un elemento del
+  genere. Il nome accessibile arriva esclusivamente dagli attributi
+  data-cap-i18n-*-aria-label.
+#}
+<form method="post">
+  <div class="mb-3">
+    <p class="form-label mb-2">
+      Conferma di non essere un robot. Campo obbligatorio.
+    </p>
+    {% include 'partials/widget_visibile.html' %}
+  </div>
+  <div class="mb-3">
+    <label for="text" class="form-label">Campo di testo</label>
+    <input type="text" name="text" id="text" class="form-control">
+  </div>
+  <button type="submit" class="btn btn-primary">Invia</button>
+</form>

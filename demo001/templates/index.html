@@ -1,24 +1,93 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row g-4 py-5 row-cols-1 row-cols-lg-3">
-	<div class="feature col">
-		<div
-			class="feature-icon d-inline-flex align-items-center justify-content-center text-bg-primary bg-gradient fs-2 mb-3">
-		</div>
-		<h2 class="fs-2 text-body-emphasis">Form protetto da Captcha visibile con label in italiano</h2>
-		<p></p>
-		<a href="/visible-it" class="icon-link">
-			Vai alla demo Captcha visibile (italiano)</a>
-	</div>
-	<div class="feature col">
-		<div
-			class="feature-icon d-inline-flex align-items-center justify-content-center text-bg-primary bg-gradient fs-2 mb-3">
-		</div>
-		<h2 class="fs-2 text-body-emphasis">Form protetto da Captcha invisibile</h2>
-		<p></p>
-		<a href="/invisible" class="icon-link">
-			Vai alla demo Captcha invisibile</a>
-	</div>
+<p class="lead">
+  RERCaptcha protegge le form dei siti della Regione Emilia-Romagna senza
+  chiedere all'utente di riconoscere immagini e senza coinvolgere servizi di
+  terze parti. Queste pagine mostrano il widget in funzione e spiegano come
+  integrarlo.
+</p>
+
+<div class="card border-primary mb-5">
+  <div class="card-body">
+    <h2 class="card-title h4">Guida all'integrazione</h2>
+    <p class="card-text">
+      Il ciclo completo: come ottenere le chiavi, il codice da inserire nelle
+      pagine, la verifica lato server in Python, PHP e Java, la Content
+      Security Policy, i codici di risposta e i problemi ricorrenti.
+    </p>
+    <a href="{{ url_for('guida') }}" class="btn btn-primary">Apri la guida</a>
+  </div>
+</div>
+
+<h2 class="h4 mb-3">Le demo</h2>
+<div class="row g-4 row-cols-1 row-cols-lg-3">
+  <div class="col">
+    <div class="card h-100">
+      <div class="card-body">
+        <h3 class="card-title h5">Captcha visibile</h3>
+        <p class="card-text">
+          Il widget classico, con le etichette tradotte in italiano. È la
+          modalità da preferire nella maggior parte dei casi.
+        </p>
+      </div>
+      <div class="card-footer bg-transparent border-0">
+        <a href="{{ url_for('visible_it') }}" class="btn btn-outline-primary">
+          Vai alla demo
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card h-100">
+      <div class="card-body">
+        <h3 class="card-title h5">Senza localizzazione</h3>
+        <p class="card-text">
+          Lo stesso widget privo degli attributi di traduzione, per vedere che
+          cosa ottiene chi li omette, compreso il nome accessibile.
+        </p>
+      </div>
+      <div class="card-footer bg-transparent border-0">
+        <a href="{{ url_for('visible_en') }}" class="btn btn-outline-primary">
+          Vai alla demo
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card h-100">
+      <div class="card-body">
+        <h3 class="card-title h5">Captcha invisibile</h3>
+        <p class="card-text">
+          Nessuna interazione richiesta: la sfida è risolta al caricamento
+          della pagina e il pulsante di invio si abilita da solo.
+        </p>
+      </div>
+      <div class="card-footer bg-transparent border-0">
+        <a href="{{ url_for('invisible') }}" class="btn btn-outline-primary">
+          Vai alla demo
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card h-100">
+      <div class="card-body">
+        <h3 class="card-title h5">Scenari di errore</h3>
+        <p class="card-text">
+          Le risposte reali del servizio quando qualcosa va storto: token
+          riusato, token scaduto, chiave segreta errata.
+        </p>
+      </div>
+      <div class="card-footer bg-transparent border-0">
+        <a href="{{ url_for('errori') }}" class="btn btn-outline-primary">
+          Vai alla demo
+        </a>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
