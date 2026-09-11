@@ -4,6 +4,7 @@ import { Elysia, file } from "elysia";
 import { assetsServer } from "./assets.js";
 import { auth } from "./auth.js";
 import { capServer } from "./cap.js";
+import { CONTENT_SECURITY_POLICY } from "./csp.js";
 import { isDemoMode } from "./demo.js";
 import { loadIPDB } from "./ipdb.js";
 import { loadRswKeypair, startRswRefresh } from "./rsw-store.js";
@@ -75,9 +76,12 @@ new Elysia({
   .onBeforeHandle(({ set }) => {
     set.headers["X-Powered-By"] = "Cap Standalone";
     // security headers globali: coprono dashboard, login page, asset e API,
-    // non solo le route admin (vedi capjs/README.md)
+    // non solo le route admin (vedi capjs/README.md). script-src/style-src
+    // includono gli hash degli inline di login.html/autologin.html (vedi
+    // src/csp.js) invece di 'unsafe-inline', altrimenti quelle pagine
+    // restano bloccate sullo spinner senza nessun errore lato server.
     set.headers["X-Content-Type-Options"] = "nosniff";
-    set.headers["Content-Security-Policy"] = "default-src 'self'";
+    set.headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY;
   })
   .onError(({ error, code }) => {
     const serializeError = (err) =>
