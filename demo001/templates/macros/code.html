@@ -1,0 +1,39 @@
+{#
+  Resa di un blocco di codice.
+
+  `sorgente` può essere una stringa oppure il risultato di un
+  {% set x %}{% include ... %}{% endset %}: il filtro `evidenzia` normalizza
+  l'indentazione e si occupa dell'escaping, quindi non vanno mai scritte
+  entità HTML a mano.
+
+  Il markup prodotto contiene solo <span class="...">, così il testo copiato
+  coincide esattamente con il sorgente.
+#}
+{% macro code_block(sorgente, lang='text', nomefile=None, etichetta=None) %}
+<figure class="code-block">
+  <figcaption>
+    <span class="code-meta">
+      <span class="code-lang">{{ etichetta or lang }}</span>
+      {%- if nomefile %}<code class="code-file">{{ nomefile }}</code>{% endif %}
+    </span>
+    <button type="button" class="btn btn-sm btn-outline-secondary code-copia"
+            data-copia hidden>Copia</button>
+  </figcaption>
+  <pre tabindex="0" role="region"
+       aria-label="Codice {{ etichetta or lang }}"><code>{{ sorgente | evidenzia(lang) }}</code></pre>
+</figure>
+{% endmacro %}
+
+
+{#
+  Legenda dei segnaposto, da mostrare una sola volta sopra un gruppo di
+  blocchi anziché ripeterla in ognuno.
+#}
+{% macro legenda_segnaposto() %}
+<dl class="legenda-segnaposto">
+  <dt><code>SITE_KEY_PUBBLICA</code></dt>
+  <dd>La chiave pubblica del tuo sito. Compare nell'HTML ed è visibile a chiunque.</dd>
+  <dt><code>SECRET_KEY_PRIVATA</code></dt>
+  <dd>La chiave segreta. Resta sul server: non deve finire né nel browser né in un repository.</dd>
+</dl>
+{% endmacro %}

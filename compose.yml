@@ -40,6 +40,26 @@ services:
     depends_on:
       - demo-init
 
+  demo001:
+    build: ./demo001
+    user: "1000:1000"
+    ports:
+      - "5001:5000"
+    volumes:
+      # demo001 legge qui le chiavi generate da demo-init quando SITE_KEY e
+      # SECRET_KEY non sono valorizzate: così `docker compose up` funziona
+      # senza dover copiare a mano le chiavi in questo file. In produzione le
+      # chiavi vanno impostate qui sotto come environment, non lette dal
+      # volume.
+      - ./shared:/shared:ro
+    environment:
+      CAPJS_INTERNAL_URL: http://capjs:3000
+      CAPJS_PUBLIC_URL: http://localhost:3000
+      # SITE_KEY: "LA_TUA_SITE_KEY"
+      # SECRET_KEY: "LA_TUA_SECRET_KEY"
+    depends_on:
+      - demo-init
+
   demo-init:
     build: ./demo-init
     user: "1000:1000"

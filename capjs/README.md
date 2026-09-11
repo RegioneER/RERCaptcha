@@ -5,11 +5,29 @@ vendorizzata (non un submodule) di [Cap.js](https://github.com/tiagozip/cap)
 (`standalone@3.1.11`), con alcune modifiche locali per accessibilità e
 sicurezza: aggiuntive rispetto all'origin, elencate in fondo a questo file.
 
+Per l'integrazione lato sito (client e server), vedi la guida completa
+servita dalla route `/guida` di [demo001](../demo001/README.md): qui sotto
+solo il contratto essenziale e la configurazione del servizio.
+
 ## API Endpoints
 
-### 1. Verifica Token
+### 1. Genera una sfida
 
-Verifica se un token inviato dal client è valido.
+- **URL**: `/:site_key/challenge`
+- **Metodo**: `POST`
+- **Risposta**: `{ "challenge": {...}, "token": "...", "expires": ... }`
+
+### 2. Riscatta la soluzione
+
+- **URL**: `/:site_key/redeem`
+- **Metodo**: `POST`
+- **Body**: `{ "token": "...", "solutions": [...] }`
+- **Risposta**: `{ "success": true, "token": "...", "expires": ... }`
+
+### 3. Verifica Token
+
+Verifica se un token risolto dal client è valido. Va chiamato **dal server**,
+mai dal browser: richiede la chiave segreta.
 
 - **URL**: `/:site_key/siteverify`
 - **Metodo**: `POST`
@@ -20,6 +38,15 @@ Verifica se un token inviato dal client è valido.
   ```json
   { "success": true | false, "error": "..." }
   ```
+  Sugli errori il servizio risponde con status 4xx/429 e un corpo
+  `{ "error": "..." }` — non con `success: false`. Non ci sono
+  `challenge_ts`, `hostname` o `error-codes`: chi porta configurazioni da un
+  altro servizio di captcha deve tenerne conto.
+
+### 4. Asset del widget
+
+Serviti da `/assets/` quando `ENABLE_ASSETS_SERVER=true`:
+`widget.js`, `floating.js`, `cap_wasm.js`, `cap_wasm_bg.wasm`.
 
 Le API di gestione (creazione/configurazione site key, API key, impostazioni)
 sono sotto `/server/*` e richiedono un token di sessione o API key — vedi la

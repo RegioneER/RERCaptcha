@@ -1,0 +1,144 @@
+{#
+  Macro per rendere le tabelle di riferimento definite in capjs_reference.py.
+
+  Tenerle qui, alimentate da un'unica fonte Python, evita che una tabella
+  venga aggiornata in una pagina e non nell'altra.
+#}
+
+{% macro tabella_attributi(righe) %}
+<div class="tabella-scroll">
+<table class="table table-sm table-bordered tabella-riferimento">
+  <caption class="visually-hidden">Attributi di configurazione del widget</caption>
+  <thead>
+    <tr><th scope="col">Attributo</th><th scope="col">Obbligatorio</th><th scope="col">Default</th><th scope="col">Descrizione</th></tr>
+  </thead>
+  <tbody>
+    {% for r in righe %}
+    <tr>
+      <td><code>{{ r.attributo }}</code></td>
+      <td>{{ "Sì" if r.obbligatorio else "No" }}</td>
+      <td><code>{{ r.default }}</code></td>
+      <td>{{ r.descrizione | safe }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endmacro %}
+
+{% macro tabella_i18n(righe) %}
+<div class="tabella-scroll">
+<table class="table table-sm table-bordered tabella-riferimento">
+  <caption>
+    Le righe evidenziate alimentano il nome accessibile del widget: vedi
+    <a href="#accessibilita">accessibilità</a>.
+  </caption>
+  <thead>
+    <tr><th scope="col">Chiave</th><th scope="col">Default (inglese)</th><th scope="col">Quando si vede</th></tr>
+  </thead>
+  <tbody>
+    {% for r in righe %}
+    <tr class="{{ 'riga-aria' if r.aria else '' }}">
+      <td><code>data-cap-i18n-{{ r.chiave }}</code></td>
+      <td><em>{{ r.default }}</em></td>
+      <td>{{ r.quando }}{% if r.aria %} <span class="badge text-bg-warning">aria-label</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endmacro %}
+
+{% macro tabella_eventi(righe) %}
+<div class="tabella-scroll">
+<table class="table table-sm table-bordered tabella-riferimento">
+  <caption class="visually-hidden">Eventi del widget</caption>
+  <thead>
+    <tr><th scope="col">Evento</th><th scope="col">Attributo <code>on*</code></th><th scope="col"><code>detail</code></th><th scope="col">Quando</th></tr>
+  </thead>
+  <tbody>
+    {% for r in righe %}
+    <tr>
+      <td><code>{{ r.evento }}</code></td>
+      <td><code>{{ r.attributo }}</code></td>
+      <td><code>{{ r.detail }}</code></td>
+      <td>{{ r.quando }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endmacro %}
+
+{% macro tabella_risposte(righe) %}
+<div class="tabella-scroll">
+<table class="table table-sm table-bordered tabella-riferimento">
+  <caption class="visually-hidden">Risposte di siteverify</caption>
+  <thead>
+    <tr><th scope="col">HTTP</th><th scope="col">Corpo</th><th scope="col">Causa</th><th scope="col">Cosa fare</th></tr>
+  </thead>
+  <tbody>
+    {% for r in righe %}
+    <tr>
+      <td><code>{{ r.status }}</code></td>
+      <td><code>{{ r.body }}</code></td>
+      <td>{{ r.causa }}</td>
+      <td>{{ r.cosa_fare }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endmacro %}
+
+{% macro tabella_css_vars(righe) %}
+<div class="tabella-scroll">
+<table class="table table-sm table-bordered tabella-riferimento">
+  <caption class="visually-hidden">Custom property CSS del widget</caption>
+  <thead>
+    <tr><th scope="col">Variabile</th><th scope="col">Default</th></tr>
+  </thead>
+  <tbody>
+    {% for r in righe %}
+    <tr><td><code>{{ r.nome }}</code></td><td>{{ r.default }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endmacro %}
+
+{% macro tabella_globali(righe) %}
+<div class="tabella-scroll">
+<table class="table table-sm table-bordered tabella-riferimento">
+  <caption class="visually-hidden">Variabili globali di configurazione</caption>
+  <thead>
+    <tr><th scope="col">Variabile</th><th scope="col">Descrizione</th></tr>
+  </thead>
+  <tbody>
+    {% for r in righe %}
+    <tr><td><code>{{ r.nome }}</code></td><td>{{ r.descrizione | safe }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endmacro %}
+
+{% macro tabella_ratelimit(righe) %}
+<div class="tabella-scroll">
+<table class="table table-sm table-bordered tabella-riferimento">
+  <caption class="visually-hidden">Limiti di frequenza</caption>
+  <thead>
+    <tr><th scope="col">Ambito</th><th scope="col">Limite</th><th scope="col">Note</th></tr>
+  </thead>
+  <tbody>
+    {% for r in righe %}
+    <tr>
+      <td>{{ r.ambito | safe }}</td>
+      <td>{{ r.limite }}</td>
+      <td>{{ r.note | safe }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endmacro %}

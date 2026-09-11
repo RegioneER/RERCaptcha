@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bootstrap di una site key demo su capjs, parlando con la sua API HTTP.
+"""Bootstrap delle site key demo su capjs, parlando con la sua API HTTP.
 
 cap.js v3 non ha piu' uno storage SQLite locale (e' su Redis/Valkey), quindi
 questo script non puo' piu' scrivere direttamente nel database come faceva
@@ -16,6 +16,10 @@ CAPJS_URL = os.environ.get("CAPJS_URL", "http://capjs:3000").rstrip("/")
 ADMIN_KEY = os.environ["ADMIN_KEY"]
 KEYS_FILE = "/shared/keys.json"
 SITE_NAME = "flask-test"
+# Seconda chiave, con tokenTTL molto breve: usata dalla pagina /errori di
+# demo001 per rendere osservabile la scadenza di un token senza dover
+# attendere i 2 minuti della configurazione normale.
+SITE_NAME_SHORT_TTL = "flask-test-shortttl"
 
 os.makedirs(os.path.dirname(KEYS_FILE), exist_ok=True)
 
@@ -57,16 +61,9 @@ def login():
     return base64.b64encode(json.dumps(payload).encode()).decode()
 
 
-wait_for_capjs()
-
-if os.path.exists(KEYS_FILE):
-    print(f"✅ Chiave gia' presente per '{SITE_NAME}'")
-    data = json.load(open(KEYS_FILE))
-else:
-    print(f"🆕 Creo nuova chiave per '{SITE_NAME}'")
-    token = login()
-
-    created = request("POST", "/server/keys", {"name": SITE_NAME}, token=token)
+def crea_chiave(token, nome, token_ttl):
+    print(f"🆕 Creo nuova chiave per '{nome}'")
+    created = request("POST", "/server/keys", {"name": nome}, token=token)
     site_key = created["siteKey"]
 
     request(
@@ -76,12 +73,35 @@ else:
             "difficulty": 4,
             "challengeCount": 50,
             "expiresMS": 60000,
-            "tokenTTL": 120000,
+            "tokenTTL": token_ttl,
         },
         token=token,
     )
 
-    data = {"siteKey": site_key, "secretKey": created["secretKey"]}
+    return site_key, created["secretKey"]
+
+
+wait_for_capjs()
+
+if os.path.exists(KEYS_FILE):
+    print(f"✅ Chiavi gia' presenti in {KEYS_FILE}")
+    data = json.load(open(KEYS_FILE))
+else:
+    token = login()
+
+    site_key, secret_key = crea_chiave(token, SITE_NAME, token_ttl=120000)
+    # 10 secondi: abbastanza breve da dimostrare la scadenza di un token in
+    # una demo interattiva, senza i 2 minuti della chiave principale.
+    site_key_short, secret_key_short = crea_chiave(
+        token, SITE_NAME_SHORT_TTL, token_ttl=10000
+    )
+
+    data = {
+        "siteKey": site_key,
+        "secretKey": secret_key,
+        "siteKeyShortTTL": site_key_short,
+        "secretKeyShortTTL": secret_key_short,
+    }
     with open(KEYS_FILE, "w") as f:
         json.dump(data, f, indent=2)
 

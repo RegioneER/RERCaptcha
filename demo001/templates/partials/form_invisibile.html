@@ -1,0 +1,22 @@
+{#
+  Form protetta da captcha invisibile.
+
+  A differenza della modalità visibile, qui il campo hidden lo dichiari tu.
+  Il motivo è nel comportamento di `new Cap(...)`: senza secondo argomento il
+  widget viene creato nascosto e appeso a document.documentElement, cioè
+  FUORI dalla form. L'attributo data-cap-hidden-field-name non avrebbe quindi
+  alcun effetto, e il token va scritto a mano (vedi script_invisibile.html).
+
+  Il pulsante parte disabilitato e viene abilitato dallo script solo quando il
+  token è disponibile.
+#}
+<form method="post">
+  <div class="mb-3">
+    <label for="text" class="form-label">Campo di testo</label>
+    <input type="text" name="text" id="text" class="form-control">
+  </div>
+  <input type="hidden" name="capjs-token" id="capjs-token">
+  <button type="submit" id="capjs-button" class="btn btn-primary" disabled>
+    Invia
+  </button>
+</form>

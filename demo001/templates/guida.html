@@ -1,0 +1,723 @@
+{% extends 'base.html' %}
+{% from 'macros/code.html' import code_block, legenda_segnaposto %}
+{% from 'macros/tabelle.html' import tabella_attributi, tabella_i18n, tabella_eventi, tabella_risposte, tabella_css_vars, tabella_globali, tabella_ratelimit %}
+
+{% block title %}<title>Guida all'integrazione — RERCaptcha</title>{% endblock %}
+
+{% block content %}
+<nav aria-label="Percorso di navigazione">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">RERCaptcha</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Guida all'integrazione</li>
+  </ol>
+</nav>
+
+<div class="row">
+  <div class="col-lg-3 mb-4">
+    <nav aria-label="Indice della guida" class="guida-indice">
+      <strong class="d-block mb-2">Indice</strong>
+      <ol class="list-unstyled">
+        <li><a href="#panoramica">Come funziona</a></li>
+        <li><a href="#chiavi">Ottenere le chiavi</a></li>
+        <li><a href="#client-visibile">Client — widget visibile</a></li>
+        <li><a href="#client-invisibile">Client — modalità invisibile</a></li>
+        <li><a href="#attributi">Attributi del widget</a></li>
+        <li><a href="#eventi">Eventi e API JavaScript</a></li>
+        <li><a href="#server">Verifica lato server</a></li>
+        <li><a href="#risposte">Risposte di siteverify</a></li>
+        <li><a href="#token">Token: monouso e scadenza</a></li>
+        <li><a href="#ratelimit">Limiti di frequenza</a></li>
+        <li><a href="#csp">Content Security Policy</a></li>
+        <li><a href="#stile">Personalizzazione grafica</a></li>
+        <li><a href="#accessibilita">Accessibilità</a></li>
+        <li><a href="#troubleshooting">Problemi frequenti</a></li>
+        <li><a href="#widget-personalizzati">Appendice: widget personalizzati</a></li>
+        <li><a href="#riferimenti">Riferimenti</a></li>
+      </ol>
+    </nav>
+  </div>
+
+  <div class="col-lg-9">
+
+    <section id="panoramica" class="guida-sezione">
+      <h2>Come funziona</h2>
+      <p>
+        RERCaptcha usa <a href="https://capjs.js.org">CapJS</a>: una sfida di
+        proof-of-work risolta dal browser, senza immagini da riconoscere,
+        senza profilazione dell'utente e senza chiamate a servizi di terze
+        parti durante la risoluzione.
+      </p>
+      <p>Il ciclo completo di un invio protetto:</p>
+      {{ code_block(
+        "Browser                     Tuo server                 RERCaptcha\n"
+        "  │── GET pagina ───────────────▶│\n"
+        "  │◀─ HTML + widget.js ──────────│\n"
+        "  │\n"
+        "  │── POST /{siteKey}/challenge ──────────────────────────────▶│\n"
+        "  │◀─ { token, challenge:{c,s,d}, expires } ───────────────────│\n"
+        "  │   risolve N proof-of-work (WebWorker + WASM)\n"
+        "  │── POST /{siteKey}/redeem { token, solutions } ────────────▶│\n"
+        "  │◀─ { success:true, token, expires } ────────────────────────│\n"
+        "  │   il widget scrive il token nel campo capjs-token\n"
+        "  │\n"
+        "  │── POST form (capjs-token=…) ─▶│\n"
+        "  │                               │── POST /{siteKey}/siteverify ────▶│\n"
+        "  │                               │   secret + response               │\n"
+        "  │                               │◀─ 200 {\"success\":true} ───────────│\n"
+        "  │                               │   (il token viene CANCELLATO)\n"
+        "  │◀─ risposta applicativa ───────│",
+        'text'
+      ) }}
+      <div class="nota">
+        <p class="mb-0">
+          Le prime due chiamate partono dal <strong>browser</strong> verso
+          RERCaptcha direttamente: per questo il servizio deve avere
+          <code>CORS_ORIGIN</code> configurata per il tuo dominio. Solo
+          <code>siteverify</code> è una chiamata <strong>server → RERCaptcha</strong>
+          e non deve mai partire dal browser: esporrebbe la chiave segreta.
+        </p>
+      </div>
+    </section>
+
+    <section id="chiavi" class="guida-sezione">
+      <h2>Ottenere le chiavi</h2>
+      <p>
+        Ogni sito riceve una coppia di chiavi. La <code>site key</code> è
+        pubblica e finisce nell'HTML della pagina. La
+        <code>secret key</code> resta sul server: viene mostrata una sola
+        volta al momento della creazione, perché il servizio la conserva solo
+        come hash e non può più mostrartela in seguito.
+      </p>
+      <p>
+        Le chiavi si richiedono dal pannello di amministrazione del servizio.
+        <!--
+        TODO: inserire link al pannello di amministrazione, quando sarà pronto o 
+              i contatti.
+        -->
+      </p>
+      <!--
+      {% if not configurazione_mancante %}
+      <div class="nota">
+        <p class="mb-0">
+          Su questa istanza: site key <code>{{ site_key }}</code>,
+          servizio raggiungibile dal browser su <code>{{ capjs_public_url }}</code>.
+        </p>
+      </div>
+      {% endif %}
+      -->
+    </section>
+
+    <!--
+    <section id="url" class="guida-sezione">
+      <h2>Le due URL</h2>
+      <p>
+        Ogni integrazione ha bisogno di due URL distinti verso lo stesso
+        servizio, ed è l'errore di configurazione più comune scambiarli:
+      </p>
+      <ul>
+        <li>
+          <strong>URL pubblico</strong> — quello che il <em>browser</em> deve
+          poter raggiungere. Va nell'HTML: negli attributi
+          <code>data-cap-api-endpoint</code> e in
+          <code>CAP_CUSTOM_WASM_URL</code>.
+        </li>
+        <li>
+          <strong>URL interno</strong> — quello che il tuo <em>server</em> usa
+          per chiamare <code>siteverify</code>. In un'orchestrazione con rete
+          interna (come Docker Compose) è tipicamente un hostname privato,
+          diverso da quello pubblico.
+        </li>
+      </ul>
+      <p class="mb-0">
+        In questa demo: <code>CAPJS_PUBLIC_URL</code> e
+        <code>CAPJS_INTERNAL_URL</code> in <code>app.py</code>.
+      </p>
+    </section>
+    -->
+
+    <section id="client-visibile" class="guida-sezione">
+      <h2>Client — widget visibile</h2>
+      <p>Due script, sempre nello stesso ordine, prima del widget:</p>
+      {#
+        Da qui in avanti sovrascriviamo capjs_public_url/site_key/csp_nonce
+        con placeholder: NON dentro un {% with %}, perché in Jinja un {% set %}
+        eseguito all'interno di un {% with %} resta confinato a quel blocco e
+        non è più visibile fuori (verificato: produce stringa vuota). Fuori da
+        un {% with %}, l'assegnazione sequenziale persiste per il resto della
+        sezione, cosa che qui va bene perché non servono più i valori reali.
+      #}
+      {% set capjs_public_url = 'https://rercaptcha.regione.emr.it' %}
+      {% set csp_nonce = '<NONCE>' %}
+      {% set loader_html %}{% include 'partials/loader.html' %}{% endset %}
+      {{ code_block(loader_html, 'html', nomefile='templates/partials/loader.html') }}
+      <p class="mb-0">
+        <code>&lt;NONCE&gt;</code> è un segnaposto: rappresenta il
+        <a href="#csp">nonce</a> generato dal server a ogni richiesta, non un
+        valore da copiare così com'è.
+      </p>
+      <div class="nota nota-pericolo">
+        <p class="mb-0">
+          <strong>L'ordine non è negoziabile.</strong>
+          <code>widget.js</code> legge <code>CAP_CUSTOM_WASM_URL</code> nel
+          momento in cui viene caricato: se la trova vuota, inserisce nella
+          pagina dei <code>&lt;link rel="prefetch"&gt;</code> verso
+          <code>cdn.jsdelivr.net</code> e scarica il modulo WebAssembly da
+          quella CDN pubblica. Per un ente pubblico è traffico verso una terza
+          parte che nessuno ha autorizzato. Verificalo nel pannello Network
+          del browser: non deve comparire nessuna richiesta a jsdelivr.
+        </p>
+      </div>
+      <p>Il widget:</p>
+      {% set site_key = 'SITE_KEY_PUBBLICA' %}
+      {% set localizzato = true %}
+      {% set widget_html %}{% include 'partials/widget_visibile.html' %}{% endset %}
+      {{ legenda_segnaposto() }}
+      {{ code_block(widget_html, 'html', nomefile='templates/partials/widget_visibile.html') }}
+      <p>
+        Il widget crea da sé, al proprio interno, il campo nascosto indicato
+        da <code>data-cap-hidden-field-name</code> e ci scrive il token:
+        basta che si trovi dentro la <code>&lt;form&gt;</code> perché venga
+        inviato con gli altri campi.
+      </p>
+      <p class="mb-0">
+        Prova dal vivo: <a href="{{ url_for('visible_it') }}">captcha visibile
+        localizzato</a>, <a href="{{ url_for('visible_en') }}">stesso widget
+        senza localizzazione</a>.
+      </p>
+    </section>
+
+    <section id="client-invisibile" class="guida-sezione">
+      <h2>Client — modalità invisibile</h2>
+      <p>
+        La sfida viene risolta appena la pagina è caricata, senza che l'utente
+        interagisca con nulla:
+      </p>
+      {% set script_html %}{% include 'partials/script_invisibile.html' %}{% endset %}
+      {{ code_block(script_html, 'html', nomefile='templates/partials/script_invisibile.html') }}
+      <div class="nota nota-attenzione">
+        <p>
+          <strong><code>new Cap(config)</code>, senza secondo argomento, crea
+          il widget con <code>display: none</code> e lo appende a
+          <code>document.documentElement</code></strong>: finisce cioè fuori
+          dalla form. <code>data-cap-hidden-field-name</code> continuerebbe a
+          funzionare, ma scriverebbe in un campo che nessun invio raccoglie —
+          per questo il token va copiato a mano nell'<code>&lt;input
+          type="hidden"&gt;</code>, come nell'esempio sopra.
+        </p>
+        <p class="mb-0">
+          Passando un secondo argomento —
+          <code>new Cap(config, elemento)</code> — piloti invece un
+          <code>&lt;cap-widget&gt;</code> già presente nel DOM, e in quel caso
+          il campo si popola da sé.
+        </p>
+      </div>
+      <p>
+        Preferisci la modalità visibile quando puoi: quella invisibile impegna
+        la CPU dell'utente al caricamento della pagina senza che se ne accorga,
+        e senza dargli un modo per intervenire in caso di errore. Prova dal
+        vivo: <a href="{{ url_for('invisible') }}">captcha invisibile</a>.
+      </p>
+    </section>
+
+    <section id="attributi" class="guida-sezione">
+      <h2>Attributi del widget</h2>
+      <h3 class="h5">Configurazione</h3>
+      {{ tabella_attributi(riferimenti.DATA_ATTRS) }}
+      <h3 class="h5 mt-4">Localizzazione</h3>
+      <p>
+        Nove chiavi <code>data-cap-i18n-&lt;chiave&gt;</code>, tutte con
+        default in inglese. Confronta la
+        <a href="{{ url_for('visible_it') }}">versione localizzata</a> con
+        quella <a href="{{ url_for('visible_en') }}">senza localizzazione</a>.
+      </p>
+      {{ tabella_i18n(riferimenti.I18N_KEYS) }}
+      <h3 class="h5 mt-4">Handler di evento come attributo</h3>
+      <p>
+        <code>onsolve</code>, <code>onprogress</code>, <code>onreset</code>,
+        <code>onerror</code> non accettano espressioni JavaScript come gli
+        handler HTML classici: il valore è cercato fra le funzioni
+        <strong>globali</strong>, quindi va indicato solo il nome della
+        funzione (es. <code>onsolve="abilitaInvio"</code>).
+      </p>
+      <h3 class="h5 mt-4">Variabili globali</h3>
+      {{ tabella_globali(riferimenti.GLOBALS) }}
+      <div class="nota">
+        <p class="mb-0">
+          Il servizio espone anche una terza modalità non mostrata in questa
+          demo: il widget flottante (<code>/assets/floating.js</code>,
+          attributi <code>data-cap-floating</code>,
+          <code>data-cap-floating-position</code>,
+          <code>data-cap-floating-offset</code>), che aggancia la risoluzione
+          al click su un pulsante esistente.
+        </p>
+      </div>
+    </section>
+
+    <section id="eventi" class="guida-sezione">
+      <h2>Eventi e API JavaScript</h2>
+      <p>
+        Tutti gli eventi sono <code>CustomEvent</code> con
+        <code>bubbles</code> e <code>composed</code> a <code>true</code>:
+        restano intercettabili anche fuori dallo shadow DOM, ad esempio sul
+        <code>document</code>.
+      </p>
+      {{ tabella_eventi(riferimenti.EVENTS) }}
+      <h3 class="h5 mt-4">Metodi e proprietà</h3>
+      <ul>
+        {% for m in riferimenti.METHODS %}
+        <li><code>{{ m.nome }}</code> — {{ m.descrizione }}</li>
+        {% endfor %}
+      </ul>
+      <p class="mb-0">
+        Pattern comune: abilitare il pulsante di invio su <code>solve</code>,
+        ri-disabilitarlo su <code>reset</code> (il widget si azzera da sé alla
+        scadenza del token) e su <code>error</code>, mostrare l'avanzamento
+        con <code>progress</code>.
+      </p>
+    </section>
+
+    <section id="server" class="guida-sezione">
+      <h2>Verifica lato server</h2>
+      <p>Due regole prima del codice:</p>
+      <ol>
+        <li>
+          <strong>Verifica sempre lato server.</strong> Il token nel campo
+          della form non garantisce nulla finché non è passato da
+          <code>siteverify</code>: chiunque può scrivere un valore a caso in
+          quel campo.
+        </li>
+        <li>
+          <strong>La chiave segreta non lascia mai il server.</strong> Non va
+          né nel browser né in un repository pubblico.
+        </li>
+      </ol>
+
+      <h3 class="h5 mt-4">Python</h3>
+      <p>
+        È lo stesso modulo che questa demo importa ed esegue: se questo
+        esempio si rompesse, la demo smetterebbe di funzionare.
+      </p>
+      {{ code_block(carica_snippet('verify.py'), 'python', nomefile='snippets/verify.py') }}
+
+      <h3 class="h5 mt-4">PHP</h3>
+      {{ code_block(carica_snippet('verify.php'), 'php', nomefile='snippets/verify.php') }}
+
+      <h3 class="h5 mt-4">Java</h3>
+      <p>Solo <code>java.net.http.HttpClient</code> (JDK 11+), senza dipendenze.</p>
+      {{ code_block(carica_snippet('Verify.java'), 'java', nomefile='snippets/Verify.java') }}
+
+      <div class="nota nota-attenzione">
+        <p class="mb-0">
+          In tutti e tre gli esempi, <strong>il corpo della risposta va letto
+          anche quando lo status non è 2xx</strong>: il servizio comunica la
+          causa dell'errore solo lì. Un controllo come <code>if response:</code>
+          in Python equivale a "status 2xx" ed è il modo più diretto per
+          buttare via proprio l'informazione che serve.
+        </p>
+      </div>
+    </section>
+
+    <section id="risposte" class="guida-sezione">
+      <h2>Risposte di <code>siteverify</code></h2>
+      {{ tabella_risposte(riferimenti.SITEVERIFY_RESPONSES) }}
+      <div class="nota">
+        <p class="mb-0">
+          La risposta di successo è <strong>solo</strong>
+          <code>{"success": true}</code>: non ci sono <code>challenge_ts</code>,
+          <code>hostname</code> o <code>error-codes</code>. Chi porta codice
+          da un altro servizio di captcha deve rimuoverne l'uso. Sugli errori
+          il corpo porta <code>error</code>, non <code>success: false</code>.
+        </p>
+      </div>
+      {% if has_endpoint('errori') %}
+      <p class="mb-0">
+        Puoi vedere ognuna di queste risposte generata dal vivo nella pagina
+        degli <a href="{{ url_for('errori') }}">scenari di errore</a>.
+      </p>
+      {% endif %}
+    </section>
+
+    <section id="token" class="guida-sezione">
+      <h2>Token: monouso e scadenza</h2>
+      <p>
+        Il token è <strong>monouso</strong>: alla prima verifica riuscita, il
+        servizio lo cancella. Una seconda chiamata a <code>siteverify</code>
+        con lo stesso token restituisce <code>404 Token not found</code>,
+        indistinguibile da un token mai esistito. Conseguenze pratiche:
+      </p>
+      <ul>
+        <li>non verificare mai lo stesso token due volte (attenzione a un
+          middleware e una view che lo controllano entrambi);</li>
+        <li>un retry HTTP automatico sulla richiesta di invio può far
+          arrivare la stessa verifica due volte;</li>
+        <li>su una form multi-step, il token va consumato una sola volta,
+          nello step in cui la verifica è definitiva.</li>
+      </ul>
+      <p>
+        La durata del token (<code>tokenTTL</code>) è configurata per singola
+        site key. Il widget arma da sé un timer sulla scadenza e, quando
+        scatta, <strong>svuota il campo nascosto senza avvisare</strong>: chi
+        compila una form lentamente vede fallire l'invio con un token
+        mancante e nessuna spiegazione visibile. Gestisci l'evento
+        <code>reset</code> per intercettarlo e mostrare un messaggio.
+      </p>
+    </section>
+
+    <section id="ratelimit" class="guida-sezione">
+      <h2>Limiti di frequenza</h2>
+      {{ tabella_ratelimit(riferimenti.RATE_LIMITS) }}
+      <p class="mb-0">
+        Sul tuo server: rispetta l'header <code>Retry-After</code> quando
+        arriva un <code>429</code> e non ritentare in loop.
+      </p>
+    </section>
+
+    <section id="csp" class="guida-sezione">
+      <h2>Content Security Policy</h2>
+      <p>
+        La policy qui sotto è la stessa che questa demo applica davvero (vedi
+        <code>configure_app_headers</code> in <code>app.py</code>): non è una
+        versione più permissiva mostrata solo come esempio.
+      </p>
+
+      <h3 class="h5">Cos'è un nonce, e perché serve</h3>
+      <p>
+        Un <strong>nonce</strong> ("number used once") è una stringa casuale
+        e imprevedibile, generata <strong>una volta per ogni risposta HTTP</strong>
+        e mai riusata. Serve ad autorizzare uno script o uno stile specifico
+        sotto una CSP restrittiva, senza dover ricorrere a
+        <code>'unsafe-inline'</code> (che autorizzerebbe <em>qualsiasi</em>
+        script inline, comprese eventuali iniezioni). Il meccanismo:
+      </p>
+      <ol>
+        <li>
+          il server genera un nonce nuovo a ogni richiesta (qui:
+          <code>secrets.token_urlsafe(18)</code> in <code>app.py</code>,
+          funzione <code>_make_nonce</code>) e lo tiene per la durata della
+          risposta;
+        </li>
+        <li>
+          lo scrive nell'header <code>Content-Security-Policy</code> di quella
+          risposta, come <code>'nonce-&lt;valore&gt;'</code>;
+        </li>
+        <li>
+          lo ripete identico nell'attributo <code>nonce="&lt;valore&gt;"</code>
+          di ogni <code>&lt;script&gt;</code> (e, se usi <code>style-src</code>
+          con nonce, anche per gli stili) presente in quella stessa pagina.
+        </li>
+      </ol>
+      <div class="nota nota-attenzione">
+        <p class="mb-0">
+          Il browser confronta i due valori: uno script con un nonce che non
+          combacia (o senza nonce) viene bloccato. Per questo il nonce
+          <strong>non può essere una stringa fissa</strong> scritta nel
+          codice: se lo fosse, chiunque potrebbe leggerla dal sorgente della
+          pagina e riusarla per far eseguire un proprio script. Va rigenerato
+          a ogni richiesta e passato ai template (qui tramite
+          <code>request.csp_nonce</code>, esposto come <code>csp_nonce</code>
+          in tutti i template — vedi <code>_contesto_comune</code> in
+          <code>app.py</code>). Il placeholder <code>&lt;NONCE&gt;</code> negli
+          esempi di questa guida rappresenta quel valore generato al volo: non
+          va copiato alla lettera.
+        </p>
+      </div>
+
+      {{ code_block(
+        "default-src 'self';\n"
+        "script-src 'nonce-<NONCE>' https://rercaptcha.regione.emr.it 'wasm-unsafe-eval';\n"
+        "style-src 'self' 'nonce-<NONCE>';\n"
+        "connect-src 'self' https://rercaptcha.regione.emr.it;\n"
+        "worker-src blob:;\n"
+        "object-src 'none';\n"
+        "base-uri 'self';\n"
+        "form-action 'self';\n"
+        "frame-ancestors 'none';",
+        'text'
+      ) }}
+      <dl>
+        <dt><code>script-src</code></dt>
+        <dd>
+          Il nonce copre gli script della tua pagina, anche quelli con
+          <code>src</code> esterno: non serve aggiungere <code>'self'</code>.
+          L'origine del servizio serve perché <code>widget.js</code> inietta a
+          sua volta uno script. <code>'wasm-unsafe-eval'</code> è necessario
+          per compilare il modulo WebAssembly.
+        </dd>
+        <dt><code>style-src</code></dt>
+        <dd>
+          Il widget inietta un <code>&lt;style&gt;</code> nel proprio shadow
+          DOM. Perché il nonce lo copra invece di ricorrere a
+          <code>'unsafe-inline'</code>, va impostata la variabile
+          <code>window.CAP_CSS_NONCE</code> con lo stesso nonce, prima di
+          caricare <code>widget.js</code>.
+        </dd>
+        <dt><code>connect-src</code></dt>
+        <dd>Necessaria appena introduci <code>default-src</code>: senza, le chiamate a <code>challenge</code> e <code>redeem</code> verrebbero bloccate.</dd>
+        <dt><code>worker-src blob:</code></dt>
+        <dd>Il risolutore gira in web worker creati a partire da un blob.</dd>
+      </dl>
+    </section>
+
+    <section id="stile" class="guida-sezione">
+      <h2>Personalizzazione grafica</h2>
+      <p>
+        Il widget vive in <strong>shadow DOM</strong>: i selettori CSS
+        normali non lo raggiungono. Le custom property e gli
+        <code>::part()</code> sì.
+      </p>
+      <h3 class="h5">Custom property</h3>
+      {{ tabella_css_vars(riferimenti.CSS_VARS) }}
+      <h3 class="h5 mt-4">Parti esposte con <code>::part()</code></h3>
+      <ul>
+        {% for p in riferimenti.CSS_PARTS %}
+        <li><code>::part({{ p.nome }})</code> — {{ p.descrizione }}</li>
+        {% endfor %}
+      </ul>
+      {{ code_block(
+        "cap-widget {\n"
+        "  --cap-color: #212121;\n"
+        "  --cap-border-radius: 6px;\n"
+        "}",
+        'css'
+      ) }}
+    </section>
+
+    <section id="accessibilita" class="guida-sezione">
+      <h2>Accessibilità</h2>
+      <p>
+        Il widget rende un <code>div role="button" tabindex="0"</code>
+        all'interno di uno shadow DOM. Due conseguenze dirette:
+      </p>
+      <ul>
+        <li>
+          <strong><code>&lt;label for="..."&gt;</code> non si associa
+          mai</strong> a un custom element: non usarla. Se serve un testo di
+          contesto, mettilo adiacente e collegalo con
+          <code>aria-describedby</code>, oppure usa
+          <code>&lt;fieldset&gt;</code>/<code>&lt;legend&gt;</code>.
+        </li>
+        <li>
+          <strong>Il nome accessibile arriva solo dalle quattro chiavi
+          <code>*-aria-label</code></strong> della tabella in
+          <a href="#attributi">Attributi del widget</a>. Ometterle non
+          rimuove l'annuncio: lo lascia in inglese.
+        </li>
+      </ul>
+      <p>Da tastiera il widget si attiva con <code>Invio</code> e <code>Spazio</code>.</p>
+      <p>
+        Gestisci gli errori di verifica con <code>role="alert"</code> e sposta
+        il focus sul messaggio, così chi usa uno screen reader lo percepisce
+        subito.
+      </p>
+      <div class="nota nota-pericolo">
+        <p class="mb-0">
+          Un captcha non dovrebbe mai essere l'unico canale di accesso a una
+          funzione: prevedi sempre un percorso alternativo per chi non riesce
+          a completarlo (WCAG, linee guida AGID).
+        </p>
+      </div>
+    </section>
+
+    <section id="troubleshooting" class="guida-sezione">
+      <h2>Problemi frequenti</h2>
+      <div class="tabella-scroll">
+      <table class="table table-sm table-bordered tabella-riferimento">
+        <caption class="visually-hidden">Sintomi, cause e verifiche</caption>
+        <thead><tr><th scope="col">Sintomo</th><th scope="col">Causa probabile</th><th scope="col">Verifica</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Il widget non appare</td>
+            <td><code>widget.js</code> bloccato dalla CSP, oppure 404 sull'asset</td>
+            <td>Console del browser e scheda Network</td>
+          </tr>
+          <tr>
+            <td>Il widget gira all'infinito</td>
+            <td><code>CORS_ORIGIN</code> del servizio non include il tuo dominio, oppure manca <code>connect-src</code> nella CSP</td>
+            <td>Errori CORS o CSP in console</td>
+          </tr>
+          <tr>
+            <td>La risoluzione è lentissima</td>
+            <td><code>CAP_CUSTOM_WASM_URL</code> non impostata: sta girando senza WebAssembly</td>
+            <td>Etichetta "Abilita WASM..." visibile sul widget</td>
+          </tr>
+          <tr>
+            <td>Richieste a <code>cdn.jsdelivr.net</code> nel Network tab</td>
+            <td>Script invertiti: <code>widget.js</code> caricato prima di <code>CAP_CUSTOM_WASM_URL</code></td>
+            <td>Ordine dei due <code>&lt;script&gt;</code> in <a href="#client-visibile">client — widget visibile</a></td>
+          </tr>
+          <tr>
+            <td><code>Missing API endpoint</code> in console</td>
+            <td><code>apiEndpoint</code> mancante e nessun <code>CAP_CUSTOM_FETCH</code></td>
+            <td>Attributo <code>data-cap-api-endpoint</code> o config JS</td>
+          </tr>
+          <tr>
+            <td><code>404 Token not found</code> su un token appena ottenuto</td>
+            <td>Il token era già stato verificato: è monouso</td>
+            <td><a href="#token">Token: monouso e scadenza</a></td>
+          </tr>
+          <tr>
+            <td><code>400 Missing required parameters</code></td>
+            <td>Campo letto con il nome sbagliato sul server</td>
+            <td>Nome reale del campo: <code>{{ campo_token }}</code>, oppure <code>cap-token</code> se non hai impostato <code>data-cap-hidden-field-name</code></td>
+          </tr>
+          <tr>
+            <td>In modalità invisibile il token resta sempre vuoto</td>
+            <td>Il widget è stato creato fuori dalla form</td>
+            <td><a href="#client-invisibile">Client — modalità invisibile</a></td>
+          </tr>
+          <tr>
+            <td>Funziona in locale, non in produzione</td>
+            <td>Site key diversa fra gli ambienti, oppure <code>CAPJS_PUBLIC_URL</code> non corrisponde all'origine da cui il browser chiama</td>
+            <td>Configurazione per ambiente</td>
+          </tr>
+          <tr>
+            <td><code>429</code> inspiegabili</td>
+            <td>Un secret errato ha bloccato temporaneamente l'IP del server, oppure il servizio è dietro proxy senza <code>RATELIMIT_IP_HEADER</code></td>
+            <td><a href="#ratelimit">Limiti di frequenza</a></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section id="widget-personalizzati" class="guida-sezione">
+      <h2>Appendice: widget personalizzati</h2>
+      <p>
+        "Personalizzare il widget" può voler dire tre cose diverse, con
+        soluzioni molto diverse per costo e rischio. Prima di scrivere codice
+        nuovo, verifica quale ti serve davvero.
+      </p>
+
+      <h3 class="h5">1. Cambiare aspetto o comportamento del widget ufficiale</h3>
+      <p>
+        Il caso più comune, e quello che richiede meno lavoro: non serve un
+        widget diverso, bastano gli strumenti già del widget ufficiale, già
+        documentati in questa guida.
+      </p>
+      <ul>
+        <li>Colori, dimensioni, font → <a href="#stile">personalizzazione grafica</a> (custom property CSS e <code>::part()</code>).</li>
+        <li>Testi ed etichette → <a href="#attributi">attributi <code>data-cap-i18n-*</code></a>.</li>
+        <li>Comportamento del pulsante di invio, barre di avanzamento, gestione dell'errore → <a href="#eventi">eventi <code>solve</code>/<code>progress</code>/<code>reset</code>/<code>error</code></a>: il widget resta quello ufficiale, la tua UI reagisce ai suoi eventi.</li>
+      </ul>
+
+      <h3 class="h5 mt-4">2. Integrarlo in un framework diverso da HTML puro</h3>
+      <p>
+        Il widget è un <em>web component</em> (<code>&lt;cap-widget&gt;</code>):
+        funziona ovunque, ma nei framework a componenti va spesso "svegliato"
+        con la sintassi propria del framework per intercettarne gli eventi. La
+        documentazione ufficiale del progetto CapJS fornisce esempi nativi —
+        senza bisogno di librerie di terze parti — per React 19+, Vue, Svelte
+        5, SolidJS, Astro, Preact e Qwik. Esempio in React:
+      </p>
+      {{ code_block(
+        "import { useRef } from \"react\";\n\n"
+        "function CaptchaForm() {\n"
+        "  const tokenRef = useRef(null);\n\n"
+        "  return (\n"
+        "    <cap-widget\n"
+        "      data-cap-api-endpoint=\"https://captcha.tuodominio.it/SITE_KEY_PUBBLICA/\"\n"
+        "      data-cap-hidden-field-name=\"capjs-token\"\n"
+        "      onsolve={(e) => { tokenRef.current = e.detail.token; }}\n"
+        "    />\n"
+        "  );\n"
+        "}",
+        'jsx'
+      ) }}
+      <p class="mb-0">
+        Per gli altri framework, la sintassi cambia (in Vue è
+        <code>@solve</code>, in Svelte 5 <code>on:solve</code>...) ma il
+        principio è lo stesso: resta il widget ufficiale, cambia solo come lo
+        colleghi al resto della UI. Vedi la
+        <a href="https://trycap.dev/guide/widget">pagina widget della
+        documentazione CapJS</a> per lo snippet del tuo framework.
+      </p>
+
+      <h3 class="h5 mt-4">3. Scrivere un client del tutto proprio (widget alternativo, app nativa, CLI)</h3>
+      <p>
+        Qui il widget non c'entra più: si tratta di parlare direttamente con
+        gli endpoint <code>challenge</code>/<code>redeem</code> (vedi
+        <a href="#panoramica">come funziona</a>) e risolvere tu stesso la
+        sfida di proof-of-work — per esempio in un'app mobile nativa, o in un
+        widget per un framework non coperto dal punto 2.
+      </p>
+      <div class="nota nota-attenzione">
+        <p class="mb-0">
+          L'algoritmo di risoluzione non è documentato qui perché
+          <strong>deve combaciare esattamente</strong> con quello che il
+          servizio si aspetta: descriverlo a parole rischia di produrre
+          un'implementazione leggermente diversa e quindi incompatibile, in
+          modo silenzioso, alla prima modifica dell'algoritmo upstream.
+          Usa come riferimento il codice sorgente di <code>@cap.js/server</code>
+          (Apache-2.0, nello stesso repository di CapJS) invece di
+          reimplementarlo da una descrizione, e verifica il comportamento
+          contro un'istanza reale del servizio (anche questa demo, in
+          locale) prima di considerarlo pronto. Controlla inoltre la
+          versione: alcune versioni di CapJS supportano anche sfide "a
+          instrumentation" oltre al semplice proof-of-work, che un client
+          scritto da zero potrebbe non gestire.
+        </p>
+      </div>
+      <p>
+        Per l'uso legittimo da server-to-server (non per un form compilato da
+        persone reali, ma per automazioni o account di servizio che devono
+        comunque superare la verifica) il progetto CapJS pubblica
+        <code>@cap.js/solver</code>: risolve le sfide lato server, gira solo
+        su Bun, <strong>non aggira il proof-of-work reale</strong> e non
+        supporta le sfide "a instrumentation".
+      </p>
+
+      <h3 class="h5 mt-4">Progetti open source correlati</h3>
+      <p>
+        Il progetto CapJS mantiene un elenco ufficiale di librerie realizzate
+        dalla community, con un avviso che vale la pena riportare per
+        intero: <em>sono mantenute dalla community e non sono ufficialmente
+        supportate né monitorate attivamente per la sicurezza; non si può
+        garantirne qualità, sicurezza o compatibilità, e potrebbero non
+        supportare funzionalità più recenti</em>. Valutale con lo stesso
+        criterio con cui valuteresti qualunque altra dipendenza di terze
+        parti prima di usarle in produzione. Alcuni esempi, al momento in cui
+        scriviamo:
+      </p>
+      <div class="tabella-scroll">
+      <table class="table table-sm table-bordered tabella-riferimento">
+        <caption class="visually-hidden">Librerie community per CapJS</caption>
+        <thead>
+          <tr><th scope="col">Ambito</th><th scope="col">Progetti</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Wrapper widget per framework</td>
+            <td><code>@pitininja/cap-react-widget</code> (React), <code>@espressotutorialsgmbh/cap-angular-widget</code> (Angular), <code>nuxt-cap</code> (Vue/Nuxt), <code>better-captcha</code> (multi-framework: React, SolidJS, Vue, Svelte...), <code>@takeshape/use-cap</code> (React hook)</td>
+          </tr>
+          <tr>
+            <td>Verifica server-side in altri linguaggi</td>
+            <td>Java: <code>cap-server</code>, <code>cap-server-java</code>, <code>cap-captcha-keycloak</code> · Go: <code>go-cap</code>, <code>cap_go_server</code> · Python: <code>capjs-server</code>, <code>django-cap</code> · PHP: <code>capito</code>, <code>cap-php</code>, plugin WordPress, <code>laravel-cap</code> · .NET: <code>pow-cap-server</code></td>
+          </tr>
+          <tr>
+            <td>Deployment su edge/serverless</td>
+            <td><code>CFCap</code> e <code>cap-worker</code> per Cloudflare Workers</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="mb-0">
+        Elenco completo e aggiornato:
+        <a href="https://trycap.dev/guide/community">trycap.dev/guide/community</a>.
+        Prima di adottarne uno, controlla che sia mantenuto e compatibile con
+        la versione del widget/servizio in uso su questa istanza (vedi
+        <a href="#riferimenti">riferimenti</a>).
+      </p>
+    </section>
+
+    <section id="riferimenti" class="guida-sezione mb-0">
+      <h2>Riferimenti</h2>
+      <ul class="mb-0">
+        <li><a href="https://capjs.js.org">CapJS</a>, il progetto open source su cui si basa RERCaptcha</li>
+        <li>Licenza Apache-2.0</li>
+        <li>Versioni in uso su questa istanza: widget e WASM come configurati dal servizio</li>
+      </ul>
+    </section>
+
+  </div>
+</div>
+{% endblock %}

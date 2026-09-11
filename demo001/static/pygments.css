@@ -1,0 +1,78 @@
+/* Colori dei token per l'evidenziazione del codice.
+ *
+ * Generato una tantum con Pygments (stile "default") e versionato, cosi' non
+ * serve produrlo a runtime. Sono state tenute solo le regole dei token: le
+ * regole per la numerazione di riga non servono, la macro non la usa.
+ *
+ * Per rigenerarlo, vedi il commento in cima a demo001/static/docs.css.
+ */
+.code-block pre code .hll { background-color: #ffffcc }
+.code-block pre code { background: #f8f8f8; }
+.code-block pre code .c { color: #3D7B7B; font-style: italic } /* Comment */
+.code-block pre code .err { border: 1px solid #F00 } /* Error */
+.code-block pre code .k { color: #008000; font-weight: bold } /* Keyword */
+.code-block pre code .o { color: #666 } /* Operator */
+.code-block pre code .ch { color: #3D7B7B; font-style: italic } /* Comment.Hashbang */
+.code-block pre code .cm { color: #3D7B7B; font-style: italic } /* Comment.Multiline */
+.code-block pre code .cp { color: #9C6500 } /* Comment.Preproc */
+.code-block pre code .cpf { color: #3D7B7B; font-style: italic } /* Comment.PreprocFile */
+.code-block pre code .c1 { color: #3D7B7B; font-style: italic } /* Comment.Single */
+.code-block pre code .cs { color: #3D7B7B; font-style: italic } /* Comment.Special */
+.code-block pre code .gd { color: #A00000 } /* Generic.Deleted */
+.code-block pre code .ge { font-style: italic } /* Generic.Emph */
+.code-block pre code .ges { font-weight: bold; font-style: italic } /* Generic.EmphStrong */
+.code-block pre code .gr { color: #E40000 } /* Generic.Error */
+.code-block pre code .gh { color: #000080; font-weight: bold } /* Generic.Heading */
+.code-block pre code .gi { color: #008400 } /* Generic.Inserted */
+.code-block pre code .go { color: #717171 } /* Generic.Output */
+.code-block pre code .gp { color: #000080; font-weight: bold } /* Generic.Prompt */
+.code-block pre code .gs { font-weight: bold } /* Generic.Strong */
+.code-block pre code .gu { color: #800080; font-weight: bold } /* Generic.Subheading */
+.code-block pre code .gt { color: #04D } /* Generic.Traceback */
+.code-block pre code .kc { color: #008000; font-weight: bold } /* Keyword.Constant */
+.code-block pre code .kd { color: #008000; font-weight: bold } /* Keyword.Declaration */
+.code-block pre code .kn { color: #008000; font-weight: bold } /* Keyword.Namespace */
+.code-block pre code .kp { color: #008000 } /* Keyword.Pseudo */
+.code-block pre code .kr { color: #008000; font-weight: bold } /* Keyword.Reserved */
+.code-block pre code .kt { color: #B00040 } /* Keyword.Type */
+.code-block pre code .m { color: #666 } /* Literal.Number */
+.code-block pre code .s { color: #BA2121 } /* Literal.String */
+.code-block pre code .na { color: #687822 } /* Name.Attribute */
+.code-block pre code .nb { color: #008000 } /* Name.Builtin */
+.code-block pre code .nc { color: #00F; font-weight: bold } /* Name.Class */
+.code-block pre code .no { color: #800 } /* Name.Constant */
+.code-block pre code .nd { color: #A2F } /* Name.Decorator */
+.code-block pre code .ni { color: #717171; font-weight: bold } /* Name.Entity */
+.code-block pre code .ne { color: #CB3F38; font-weight: bold } /* Name.Exception */
+.code-block pre code .nf { color: #00F } /* Name.Function */
+.code-block pre code .nl { color: #767600 } /* Name.Label */
+.code-block pre code .nn { color: #00F; font-weight: bold } /* Name.Namespace */
+.code-block pre code .nt { color: #008000; font-weight: bold } /* Name.Tag */
+.code-block pre code .nv { color: #19177C } /* Name.Variable */
+.code-block pre code .ow { color: #A2F; font-weight: bold } /* Operator.Word */
+.code-block pre code .w { color: #BBB } /* Text.Whitespace */
+.code-block pre code .mb { color: #666 } /* Literal.Number.Bin */
+.code-block pre code .mf { color: #666 } /* Literal.Number.Float */
+.code-block pre code .mh { color: #666 } /* Literal.Number.Hex */
+.code-block pre code .mi { color: #666 } /* Literal.Number.Integer */
+.code-block pre code .mo { color: #666 } /* Literal.Number.Oct */
+.code-block pre code .sa { color: #BA2121 } /* Literal.String.Affix */
+.code-block pre code .sb { color: #BA2121 } /* Literal.String.Backtick */
+.code-block pre code .sc { color: #BA2121 } /* Literal.String.Char */
+.code-block pre code .dl { color: #BA2121 } /* Literal.String.Delimiter */
+.code-block pre code .sd { color: #BA2121; font-style: italic } /* Literal.String.Doc */
+.code-block pre code .s2 { color: #BA2121 } /* Literal.String.Double */
+.code-block pre code .se { color: #AA5D1F; font-weight: bold } /* Literal.String.Escape */
+.code-block pre code .sh { color: #BA2121 } /* Literal.String.Heredoc */
+.code-block pre code .si { color: #A45A77; font-weight: bold } /* Literal.String.Interpol */
+.code-block pre code .sx { color: #008000 } /* Literal.String.Other */
+.code-block pre code .sr { color: #A45A77 } /* Literal.String.Regex */
+.code-block pre code .s1 { color: #BA2121 } /* Literal.String.Single */
+.code-block pre code .ss { color: #19177C } /* Literal.String.Symbol */
+.code-block pre code .bp { color: #008000 } /* Name.Builtin.Pseudo */
+.code-block pre code .fm { color: #00F } /* Name.Function.Magic */
+.code-block pre code .vc { color: #19177C } /* Name.Variable.Class */
+.code-block pre code .vg { color: #19177C } /* Name.Variable.Global */
+.code-block pre code .vi { color: #19177C } /* Name.Variable.Instance */
+.code-block pre code .vm { color: #19177C } /* Name.Variable.Magic */
+.code-block pre code .il { color: #666 } /* Literal.Number.Integer.Long */

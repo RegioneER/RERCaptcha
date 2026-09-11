@@ -1,0 +1,17 @@
+{#
+  Caricamento del widget RERCaptcha.
+
+  Questo partial è incluso da base.html — quindi è il codice che sta facendo
+  funzionare la pagina — ed è mostrato come esempio nella guida.
+
+  L'ORDINE DEI DUE BLOCCHI NON È NEGOZIABILE. Il widget legge
+  CAP_CUSTOM_WASM_URL nel momento in cui viene caricato: se la trova vuota,
+  inserisce nella pagina dei <link rel="prefetch"> verso cdn.jsdelivr.net e
+  scarica il modulo WebAssembly da quella CDN. Invertire i due blocchi fa
+  uscire traffico verso terze parti. Il test test_ordine_loader lo presidia.
+#}
+<script nonce="{{ csp_nonce }}">
+  window.CAP_CUSTOM_WASM_URL = "{{ capjs_public_url }}/assets/cap_wasm.js";
+  window.CAP_CSS_NONCE = "{{ csp_nonce }}";
+</script>
+<script nonce="{{ csp_nonce }}" src="{{ capjs_public_url }}/assets/widget.js"></script>
