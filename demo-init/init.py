@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
-import sqlite3, json, os, time, base64, secrets
-from argon2 import PasswordHasher
+"""Bootstrap delle site key demo su capjs, parlando con la sua API HTTP.
 
-DB_PATH = os.environ.get("CAPJS_DB", "/data/db.sqlite")
+cap.js v3 non ha piu' uno storage SQLite locale (e' su Redis/Valkey), quindi
+questo script non puo' piu' scrivere direttamente nel database come faceva
+in precedenza: usa /auth/login + /server/keys, come farebbe la dashboard.
+"""
+import base64
+import json
+import os
+import time
+import urllib.error
+import urllib.request
+
+CAPJS_URL = os.environ.get("CAPJS_URL", "http://capjs:3000").rstrip("/")
+ADMIN_KEY = os.environ["ADMIN_KEY"]
 KEYS_FILE = "/shared/keys.json"
 SITE_NAME = "flask-test"
 # Seconda chiave, con tokenTTL molto breve: usata dalla pagina /errori di
@@ -12,108 +23,87 @@ SITE_NAME_SHORT_TTL = "flask-test-shortttl"
 
 os.makedirs(os.path.dirname(KEYS_FILE), exist_ok=True)
 
-print("⏳ Attendo che il database esista...")
-for _ in range(30):
-    if os.path.exists(DB_PATH):
-        break
-    time.sleep(1)
-else:
-    raise SystemExit("❌ Database non trovato: " + DB_PATH)
 
-# Il file db.sqlite viene creato da capjs alla connessione, PRIMA che le sue
-# "create table if not exists" abbiano finito di girare: c'è quindi una
-# finestra in cui il file esiste già ma la tabella "keys" no. Con
-# `docker compose up` che avvia i servizi in parallelo (o su un disco lento)
-# questa finestra può bastare a far fallire la query sottostante con
-# "no such table: keys". Si riprova la connessione stessa, non solo
-# l'esistenza del file.
-print("⏳ Attendo che la tabella 'keys' sia pronta...")
-conn = None
-for _ in range(30):
+def request(method, path, body=None, token=None):
+    url = f"{CAPJS_URL}{path}"
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(url, data=data, method=method)
+    req.add_header("Content-Type", "application/json")
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
     try:
-        tentativo = sqlite3.connect(DB_PATH)
-        tentativo.execute("SELECT 1 FROM keys LIMIT 1")
-        conn = tentativo
-        break
-    except sqlite3.OperationalError:
-        tentativo.close()
-        time.sleep(1)
-else:
-    raise SystemExit("❌ Tabella 'keys' non pronta dopo 30s: " + DB_PATH)
-
-conn.row_factory = sqlite3.Row
-cur = conn.cursor()
-
-hasher = PasswordHasher()
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.load(resp)
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode(errors="replace")
+        raise SystemExit(f"❌ {method} {path} -> HTTP {e.code}: {detail}")
 
 
-def crea_o_recupera_chiave(nome, config):
-    """Crea una coppia siteKey/secretKey se non esiste già per `nome`.
+def wait_for_capjs():
+    print(f"⏳ Attendo che capjs risponda su {CAPJS_URL}...")
+    for _ in range(60):
+        try:
+            urllib.request.urlopen(f"{CAPJS_URL}/", timeout=2)
+            return
+        except urllib.error.HTTPError:
+            # una risposta HTTP, anche non 2xx, vuol dire che il server e' su
+            return
+        except (urllib.error.URLError, ConnectionError, OSError):
+            time.sleep(1)
+    raise SystemExit(f"❌ capjs non raggiungibile: {CAPJS_URL}")
 
-    Ritorna sempre (siteKey, secretKey). Se la chiave esiste già ma il
-    secretKey non è più leggibile da keys.json (perché mostrato una sola
-    volta, come nel servizio vero), la vecchia riga resta orfana: per questa
-    demo locale va bene, non è il percorso da seguire in produzione.
-    """
-    cur.execute("SELECT * FROM keys WHERE name=?", (nome,))
-    row = cur.fetchone()
 
-    # TODO: se la chiave non è in key_files, ma sul db va cancellata dal db e
-    #       rigenerata
-    if row:
-        print(f"✅ Chiave già presente per '{nome}'")
-        return None
+def login():
+    res = request("POST", "/auth/login", {"admin_key": ADMIN_KEY})
+    if not res.get("success"):
+        raise SystemExit("❌ Login su capjs fallito: ADMIN_KEY errata?")
+    payload = {"token": res["session_token"], "hash": res["hashed_token"]}
+    return base64.b64encode(json.dumps(payload).encode()).decode()
 
+
+def crea_chiave(token, nome, token_ttl):
     print(f"🆕 Creo nuova chiave per '{nome}'")
-    siteKey = secrets.token_hex(5)
-    secretKey = base64.urlsafe_b64encode(secrets.token_bytes(30)).decode().rstrip("=")
-    secretHash = hasher.hash(secretKey)
+    created = request("POST", "/server/keys", {"name": nome}, token=token)
+    site_key = created["siteKey"]
 
-    cur.execute(
-        "INSERT INTO keys (siteKey, name, secretHash, config, created) VALUES (?, ?, ?, ?, ?)",
-        (siteKey, nome, secretHash, json.dumps(config), int(time.time() * 1000)),
+    request(
+        "PUT",
+        f"/server/keys/{site_key}/config",
+        {
+            "difficulty": 4,
+            "challengeCount": 50,
+            "expiresMS": 60000,
+            "tokenTTL": token_ttl,
+        },
+        token=token,
     )
-    conn.commit()
 
-    return siteKey, secretKey
+    return site_key, created["secretKey"]
 
+
+wait_for_capjs()
 
 if os.path.exists(KEYS_FILE):
+    print(f"✅ Chiavi gia' presenti in {KEYS_FILE}")
     data = json.load(open(KEYS_FILE))
 else:
-    data = {}
+    token = login()
 
-principale = crea_o_recupera_chiave(
-    SITE_NAME,
-    {
-        "difficulty": 4,
-        "challengeCount": 50,
-        "saltSize": 32,
-        "expiresMS": 60000,
-        "tokenTTL": 120000,
-    },
-)
-if principale:
-    data["siteKey"], data["secretKey"] = principale
+    site_key, secret_key = crea_chiave(token, SITE_NAME, token_ttl=120000)
+    # 10 secondi: abbastanza breve da dimostrare la scadenza di un token in
+    # una demo interattiva, senza i 2 minuti della chiave principale.
+    site_key_short, secret_key_short = crea_chiave(
+        token, SITE_NAME_SHORT_TTL, token_ttl=10000
+    )
 
-breve = crea_o_recupera_chiave(
-    SITE_NAME_SHORT_TTL,
-    {
-        "difficulty": 4,
-        "challengeCount": 50,
-        "saltSize": 32,
-        "expiresMS": 60000,
-        # 10 secondi: abbastanza breve da dimostrare la scadenza di un
-        # token in una demo interattiva, senza i 2 minuti della chiave
-        # principale.
-        "tokenTTL": 10000,
-    },
-)
-if breve:
-    data["siteKeyShortTTL"], data["secretKeyShortTTL"] = breve
-
-with open(KEYS_FILE, "w") as f:
-    json.dump(data, f, indent=2)
+    data = {
+        "siteKey": site_key,
+        "secretKey": secret_key,
+        "siteKeyShortTTL": site_key_short,
+        "secretKeyShortTTL": secret_key_short,
+    }
+    with open(KEYS_FILE, "w") as f:
+        json.dump(data, f, indent=2)
 
 print(f"💾 Chiavi salvate in {KEYS_FILE}")
 print(json.dumps(data, indent=2))

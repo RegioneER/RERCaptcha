@@ -1,250 +1,84 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="./public/index.css" />
-
     <link rel="icon" href="./public/logo-small.webp" />
     <title>Cap Standalone</title>
+    <link rel="stylesheet" href="./public/assets/style.css" />
   </head>
   <body>
-    <nav>
-      <button class="logo" role="link">
-        <img src="./public/logo-small.webp" alt="Cap logo" />
-        <p>Standalone</p>
+    <h1 class="sr-only">Cap Standalone</h1>
+    <div class="app">
+      <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="appSidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M4 8h16M4 16h16"/></svg>
       </button>
-      <button class="logout" role="link">Logout</button>
-      <button class="settings" role="link" aria-label="Settings">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="icon icon-tabler icons-tabler-outline icon-tabler-settings"
-        >
-          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-          <path
-            d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z"
-          />
-          <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
-        </svg>
-      </button>
-    </nav>
-    <div class="state-loading">
-      <svg
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg"
-        alt="Loading..."
-        title="Loading..."
-      >
-        <style>
-          .spinner_ajPY {
-            transform-origin: center;
-            animation: spinner_AtaB 0.4s infinite linear;
-          }
-          @keyframes spinner_AtaB {
-            100% {
-              transform: rotate(360deg);
-            }
-          }
-        </style>
-        <path
-          d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z"
-          opacity=".25"
-          fill="white"
-        />
-        <path
-          d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z"
-          class="spinner_ajPY"
-          fill="white"
-        />
-      </svg>
-    </div>
-
-    <div class="state-homepage" style="display: none">
-      <div class="keys-top">
-        <input type="text" id="searchKeys" placeholder="Search keys…" class="search-input" aria-label="Search keys"/>
-        <button class="create-key">
+      <div class="mobile-drawer-backdrop" id="mobileDrawerBackdrop" hidden></div>
+      <aside class="sidebar" id="appSidebar">
+        <div class="sidebar-search">
           <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
             stroke-linecap="round"
             stroke-linejoin="round"
-            class="lucide lucide-plus-icon lucide-plus"
           >
-            <path d="M5 12h14" />
-            <path d="M12 5v14" />
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
           </svg>
-          <span>Add key</span>
-        </button>
-      </div>
-      <div class="keys-list"></div>
-      <a
-        href="https://github.com/tiagozip/cap"
-        target="_blank"
-        class="nano-github-button"
-        aria-label="https://github.com/tiagozip/cap"
-      >
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 17 16"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M8.5 2.22168C5.23312 2.22168 2.58496 4.87398 2.58496 8.14677C2.58496 10.7642 4.27962 12.9853 6.63026 13.7684C6.92601 13.8228 7.03366 13.6401 7.03366 13.4827C7.03366 13.3425 7.02893 12.9693 7.02597 12.4754C5.38041 12.8333 5.0332 11.681 5.0332 11.681C4.76465 10.996 4.37663 10.8139 4.37663 10.8139C3.83954 10.4471 4.41744 10.4542 4.41744 10.4542C5.01072 10.4956 5.32303 11.0647 5.32303 11.0647C5.85065 11.9697 6.70774 11.7082 7.04431 11.5568C7.09873 11.1741 7.25134 10.9132 7.42051 10.7654C6.10737 10.6157 4.72621 10.107 4.72621 7.83683C4.72621 7.19031 4.95689 6.66092 5.33486 6.24686C5.27394 6.09721 5.07105 5.49447 5.39283 4.67938C5.39283 4.67938 5.88969 4.51967 7.01947 5.28626C7.502 5.15466 7.99985 5.08763 8.5 5.08692C9.00278 5.08929 9.50851 5.15495 9.98113 5.28626C11.1103 4.51967 11.606 4.67879 11.606 4.67879C11.9289 5.49447 11.7255 6.09721 11.6651 6.24686C12.0437 6.66092 12.2732 7.19031 12.2732 7.83683C12.2732 10.1129 10.8897 10.6139 9.5724 10.7606C9.78475 10.9434 9.97344 11.3048 9.97344 11.8579C9.97344 12.6493 9.96634 13.2887 9.96634 13.4827C9.96634 13.6413 10.0728 13.8258 10.3733 13.7678C11.5512 13.3728 12.5751 12.6175 13.3003 11.6089C14.0256 10.6002 14.4155 9.38912 14.415 8.14677C14.415 4.87398 11.7663 2.22168 8.5 2.22168Z"
-            fill="currentColor"
-          ></path>
-        </svg>
-      </a>
-    </div>
+          <input type="text" id="searchInput" placeholder="Search keys..." aria-label="Search keys" />
+        </div>
+        <div class="keys-list" id="keysList"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-loader-2" style="margin-top: 1em;margin-bottom: 1em;"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a9 9 0 1 0 9 9" /></svg></div>
+        <div class="sidebar-footer">
+          <button class="new-key-btn" id="createKeyBtn">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            New key
+          </button>
+          <button class="settings-btn" id="settingsBtn">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37 1 .608 2.296.07 2.572-1.065"
+              />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            Settings
+          </button>
+        </div>
+      </aside>
 
-    <div class="state-key-page" style="display: none">
-      <button class="keypage-back">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="icon icon-tabler icons-tabler-outline icon-tabler-chevron-left"
-        >
-          <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-          <path d="M15 6l-6 6l6 6" />
-        </svg>
-        Back
-      </button>
-      <div class="topbar">
-        <div class="left">
-          <button title="Copy site key"></button>
+      <div class="content-area" id="detailPanel">
+        <div class="welcome-screen" id="welcomeScreen">
+          <h2>Add Cap to your site in 60 seconds</h2>
+          <p class="welcome-sub">Create a sitekey, paste two snippets, you're live.</p>
+          <button type="button" class="welcome-cta" id="welcomeCreateKey">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><path d="M12 5v14M5 12h14" /></svg>
+            Create your first key
+          </button>
+          <p class="welcome-steps"><span>1. Name your key</span><span class="welcome-step-dot">·</span><span>2. Copy the snippets</span><span class="welcome-step-dot">·</span><span>3. Ship</span></p>
+          <a class="welcome-docs" href="https://trycap.dev/guide/" target="_blank" rel="noreferrer">Read the docs →</a>
         </div>
-        <h1>Site</h1>
-        <div class="right">
-          <select class="time-duration">
-            <option value="today">Today</option>
-            <option value="yesterday">Yesterday</option>
-            <option value="last7days">Last 7 Days</option>
-            <option value="last28days">Last 28 Days</option>
-            <option value="last91days">Last 91 Days</option>
-            <option value="alltime">All time</option>
-          </select>
-        </div>
-      </div>
-      <div class="chart-container">
-        <canvas id="chart"></canvas>
-      </div>
 
-      <h2>Configuration</h2>
-
-      <div class="config">
-        <div class="config-item">
-          <label for="keyName">Key name</label>
-          <input type="text" id="keyName" value="" />
-        </div>
-        <div class="config-item">
-          <label for="difficulty">Difficulty</label>
-          <input type="number" id="difficulty" value="" />
-        </div>
-        <div class="config-item">
-          <label for="challengeCount">Challenge Count</label>
-          <input type="number" id="challengeCount" value="" />
-        </div>
-        <div class="config-item">
-          <label for="saltSize">Salt Size</label>
-          <input type="number" id="saltSize" value="" />
-        </div>
-        <div class="config-item">
-          <label for="expiresMS">Challenge Expiry (ms)</label>
-          <input type="number" id="expiresMS" value="" />
-        </div>
-        <div class="config-item">
-          <label for="tokenTTL">Token TTL (ms)</label>
-          <input type="number" id="tokenTTL" value="" />
-        </div>
-        <button>Save</button>
-      </div>
-
-      <h2>Danger zone</h2>
-      <div class="danger-zone-buttons">
-        <button class="rotate-secret">Rotate key secret</button>
-        <button class="delete-key">Delete key</button>
+        <div class="key-detail" id="keyDetail" style="display: none"></div>
       </div>
     </div>
 
-    <div class="state-settings" style="display: none">
-      <h1>Settings</h1>
-      <h2>Sessions</h2>
-
-      <div class="sessions-list"></div>
-
-      <div class="apikeys-title">
-        <h2>API Keys</h2>
-        <button class="create-api-key">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="lucide lucide-plus-icon lucide-plus"
-          >
-            <path d="M5 12h14"></path>
-            <path d="M12 5v14"></path>
-          </svg>
-          <span>Create</span>
-        </button>
-      </div>
-      <div class="apikeys-list"></div>
-
-      <h2>About</h2>
-      <p class="about-info"></p>
-      <a
-        href="https://github.com/tiagozip/cap"
-        target="_blank"
-        class="about-button"
-      >
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 17 16"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M8.5 2.22168C5.23312 2.22168 2.58496 4.87398 2.58496 8.14677C2.58496 10.7642 4.27962 12.9853 6.63026 13.7684C6.92601 13.8228 7.03366 13.6401 7.03366 13.4827C7.03366 13.3425 7.02893 12.9693 7.02597 12.4754C5.38041 12.8333 5.0332 11.681 5.0332 11.681C4.76465 10.996 4.37663 10.8139 4.37663 10.8139C3.83954 10.4471 4.41744 10.4542 4.41744 10.4542C5.01072 10.4956 5.32303 11.0647 5.32303 11.0647C5.85065 11.9697 6.70774 11.7082 7.04431 11.5568C7.09873 11.1741 7.25134 10.9132 7.42051 10.7654C6.10737 10.6157 4.72621 10.107 4.72621 7.83683C4.72621 7.19031 4.95689 6.66092 5.33486 6.24686C5.27394 6.09721 5.07105 5.49447 5.39283 4.67938C5.39283 4.67938 5.88969 4.51967 7.01947 5.28626C7.502 5.15466 7.99985 5.08763 8.5 5.08692C9.00278 5.08929 9.50851 5.15495 9.98113 5.28626C11.1103 4.51967 11.606 4.67879 11.606 4.67879C11.9289 5.49447 11.7255 6.09721 11.6651 6.24686C12.0437 6.66092 12.2732 7.19031 12.2732 7.83683C12.2732 10.1129 10.8897 10.6139 9.5724 10.7606C9.78475 10.9434 9.97344 11.3048 9.97344 11.8579C9.97344 12.6493 9.96634 13.2887 9.96634 13.4827C9.96634 13.6413 10.0728 13.8258 10.3733 13.7678C11.5512 13.3728 12.5751 12.6175 13.3003 11.6089C14.0256 10.6002 14.4155 9.38912 14.415 8.14677C14.415 4.87398 11.7663 2.22168 8.5 2.22168Z"
-            fill="currentColor"
-          ></path>
-        </svg>
-        Enjoying Cap? Star us on GitHub!
-      </a>
-    </div>
+    <script src="./public/assets/chart.js@4.5.0.min.js"></script>
+    <script src="./public/js/dashboard.js"></script>
   </body>
-  <script src="./public/js/index.js" type="module"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0" async></script>
 </html>

@@ -1,73 +1,60 @@
-import { randomBytes, timingSafeEqual } from "node:crypto";
-
+import { randomBytes } from "node:crypto";
 import { Elysia } from "elysia";
 import { db } from "./db.js";
-import { rateLimit } from "elysia-rate-limit";
-import { ratelimitGenerator } from "./ratelimit.js";
+import valkeyRateLimit from "./ratelimit.js";
 
-const { ADMIN_KEY } = process.env;
-const [verifyHeaderName, verifyHeaderValue] = process.env.VERIFY_HEADER ? process.env.VERIFY_HEADER.split(':') : [null, null];
+const { ADMIN_KEY, DEMO_MODE } = process.env;
+const [verifyHeaderName, verifyHeaderValue] = process.env.VERIFY_HEADER
+  ? process.env.VERIFY_HEADER.split(":")
+  : [null, null];
 
-if (!ADMIN_KEY) throw new Error("auth: Admin key missing. Please add one");
-if (ADMIN_KEY.length < 30)
-  throw new Error(
-    "auth: Admin key too short. Please use one that's at least 30 characters"
-  );
+if (DEMO_MODE !== "true") {
+  if (!ADMIN_KEY) throw new Error("auth: Admin key missing. Please add one");
+  if (ADMIN_KEY.length < 12)
+    throw new Error(
+      "auth: Admin key too short. Please use one that's at least 12 characters",
+    );
+}
 
 export const auth = new Elysia({
   prefix: "/auth",
 })
   .use(
-    rateLimit({
-      duration: 30_000,
-      max: 20_000,
-      scoping: "scoped",
-      generator: ratelimitGenerator,
-    })
+    valkeyRateLimit({
+      duration: 20_000,
+      max: 200, // this is intentionally permissive
+    }),
   )
   .post("/login", async ({ body, set, cookie, headers }) => {
     const { admin_key } = body;
-    if (verifyHeaderName && headers[verifyHeaderName] === verifyHeaderValue && admin_key === '__AUTOLOGIN__') {
-      // autologin
-      console.log("autologin", headers['username']);
-    }
-    else {
-      const a = Buffer.from(admin_key, "utf8");
-      const b = Buffer.from(ADMIN_KEY, "utf8");
 
-      if (!a || !b || a.length !== b.length) {
-        set.status = 401;
-        return { success: false };
-      }
+    const isAutologin =
+      verifyHeaderName &&
+      headers[verifyHeaderName] === verifyHeaderValue &&
+      admin_key === "__AUTOLOGIN__";
 
-      if (!timingSafeEqual(a, b)) {
-        set.status = 401;
-        return { success: false };
-      }
+    if (!isAutologin) {
+      const hash = (v) => new Bun.CryptoHasher("sha256").update(v).digest();
 
-      if (admin_key !== ADMIN_KEY) {
-        // as a last check, in case an attacker somehow bypasses
-        // timingSafeEqual, we're checking AGAIN to see if the tokens
-        // are right.
-
-        // yes, this is vulnerable to timing attacks, but those are
-        // hard to execute and literally just accepting an invalid token
-        // is worse.
-
+      if (!crypto.timingSafeEqual(hash(admin_key), hash(ADMIN_KEY))) {
         set.status = 401;
         return { success: false };
       }
     }
+
     const session_token = randomBytes(30).toString("hex");
     const expires = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 days
     const created = Date.now();
 
     const hashedToken = await Bun.password.hash(session_token);
+    const ttlSeconds = Math.ceil((expires - Date.now()) / 1000);
 
-    await db`
-      INSERT INTO sessions (token, created, expires)
-      VALUES (${hashedToken}, ${created}, ${expires})
-    `;
+    await db.set(
+      `session:${hashedToken}`,
+      JSON.stringify({ created, expires }),
+    );
+    await db.expire(`session:${hashedToken}`, ttlSeconds);
+    await db.sadd("sessions", hashedToken);
 
     cookie.cap_authed.set({
       value: "yes",
@@ -93,11 +80,10 @@ export const authBeforeHandle = async ({ set, headers }) => {
       return { success: false, error: "Unauthorized. Invalid bot token." };
     }
 
-    const apiKey = await db`SELECT * FROM api_keys WHERE id = ${id}`.then(
-      (rows) => rows[0]
-    );
+    const fields = await db.hmget(`apikey:${id}`, ["tokenHash"]);
+    const tokenHash = fields?.[0];
 
-    if (!apiKey || !apiKey.tokenHash) {
+    if (!tokenHash) {
       set.status = 401;
       return {
         success: false,
@@ -105,7 +91,7 @@ export const authBeforeHandle = async ({ set, headers }) => {
       };
     }
 
-    if (!(await Bun.password.verify(token, apiKey.tokenHash))) {
+    if (!(await Bun.password.verify(token, tokenHash))) {
       set.status = 401;
       return { success: false, error: "Unauthorized. Invalid bot token." };
     }
@@ -122,15 +108,19 @@ export const authBeforeHandle = async ({ set, headers }) => {
     };
   }
 
-  const { token, hash } = JSON.parse(
-    atob(authorization.replace("Bearer ", "").trim())
-  );
+  let token, hash;
+  try {
+    ({ token, hash } = JSON.parse(
+      atob(authorization.replace("Bearer ", "").trim()),
+    ));
+  } catch {
+    set.status = 401;
+    return { success: false, error: "Unauthorized. Malformed session token." };
+  }
 
-  const [validToken] = await db`
-    SELECT * FROM sessions WHERE token = ${hash} AND expires > ${Date.now()} LIMIT 1
-  `;
+  const sessionData = await db.get(`session:${hash}`);
 
-  if (!validToken) {
+  if (!sessionData) {
     set.status = 401;
     return {
       success: false,
@@ -138,7 +128,19 @@ export const authBeforeHandle = async ({ set, headers }) => {
     };
   }
 
-  if (!(await Bun.password.verify(token, validToken.token))) {
+  const session = JSON.parse(sessionData);
+
+  if (session.expires <= Date.now()) {
+    await db.del(`session:${hash}`);
+    await db.srem("sessions", hash);
+    set.status = 401;
+    return {
+      success: false,
+      error: "Unauthorized. An invalid session token was used.",
+    };
+  }
+
+  if (!(await Bun.password.verify(token, hash))) {
     set.status = 401;
     return {
       success: false,

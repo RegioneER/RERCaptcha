@@ -5,12 +5,8 @@ services:
     user: "1000:1000"   # stesso utente dell'init
     ports:
       - "3000:3000"
-    volumes:
-      - ./data:/data
-      # opzionale: montare config dall’host
-      # - ./etc/cap.config.js:/app/cap.config.js:ro
     environment:
-      DATA_PATH: /data
+      REDIS_URL: redis://valkey:6379
       # in produzione spostare su un secret/vault
       ADMIN_KEY: your_secret_password_your_secret_password
       WIDGET_VERSION: 0.1.33
@@ -19,6 +15,20 @@ services:
       CORS_ORIGIN: "*"
       LOGIN_PAGE_ENABLED: true
       HIDE_RATELIMIT_IP_WARNING: true
+    depends_on:
+      valkey:
+        condition: service_healthy
+
+  valkey:
+    image: valkey/valkey:9-alpine
+    volumes:
+      - valkey-data:/data
+    command: valkey-server --save 60 1 --loglevel warning --maxmemory-policy noeviction
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   demo:
     build: ./demo
@@ -54,8 +64,13 @@ services:
     build: ./demo-init
     user: "1000:1000"
     volumes:
-      - ./data:/data
       - ./shared:/shared
+    environment:
+      CAPJS_URL: http://capjs:3000
+      ADMIN_KEY: your_secret_password_your_secret_password
     restart: "no"
     depends_on:
       - capjs
+
+volumes:
+  valkey-data:
