@@ -62,10 +62,10 @@
     &lt;button disabled id="capjs-button" type="submit" class="btn btn-primary"&gt;Submit&lt;/button&gt;
   &lt;/form&gt;
   ...
-  &lt;script src="https://captcha.regione.emr.it/assets/widget.js"&gt;&lt;/script&gt;
+  &lt;script src="https://rercaptcha.regione.emr.it/assets/widget.js"&gt;&lt;/script&gt;
   &lt;script&gt;
-    window.CAP_CUSTOM_WASM_URL = "https://captcha.regione.emr.it/assets/cap_wasm.js";
-    const cap = new Cap({ apiEndpoint: 'https://captcha.regione.emr.it/<strong>abcdef1234</strong>/' });
+    window.CAP_CUSTOM_WASM_URL = "https://rercaptcha.regione.emr.it/assets/cap_wasm.js";
+    const cap = new Cap({ apiEndpoint: 'https://rercaptcha.regione.emr.it/<strong>abcdef1234</strong>/' });
     cap.solve().then( ({success, token}) => {
       if (success) {
         document.getElementById('capjs-token').value = token;
@@ -85,7 +85,7 @@
       <code>
         response = request.form["token"]
         res = requests.post(
-          f"https://captcha.regione.emr.it/<strong>abcdef1234</strong>/siteverify",
+          f"https://rercaptcha.regione.emr.it/<strong>abcdef1234</strong>/siteverify",
           data={"secret": <strong>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</strong>, "response": token},
           timeout=5
         )
