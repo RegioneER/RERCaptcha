@@ -1,0 +1,32 @@
+{#
+  Widget RERCaptcha in modalità visibile.
+
+  Variabili attese:
+    capjs_public_url  URL del servizio raggiungibile DAL BROWSER
+    site_key          chiave pubblica del sito
+    localizzato       se falso, omette gli attributi i18n e il widget
+                      mostra le etichette inglesi predefinite
+
+  L'endpoint deve terminare con una barra: il widget vi concatena
+  "challenge" e "redeem".
+
+  Le quattro chiavi *-aria-label non sono facoltative: il widget vive in
+  shadow DOM e <label for="..."> non si associa a un custom element, quindi
+  sono l'unica fonte del nome accessibile.
+#}
+<cap-widget
+  id="cap"
+  data-cap-api-endpoint="{{ capjs_public_url }}/{{ site_key }}/"
+  data-cap-hidden-field-name="capjs-token"
+{%- if localizzato %}
+  data-cap-i18n-initial-state="Non sono un robot"
+  data-cap-i18n-verifying-label="Verifica in corso..."
+  data-cap-i18n-solved-label="Verificato"
+  data-cap-i18n-error-label="Errore. Riprova."
+  data-cap-i18n-wasm-disabled="Abilita WebAssembly per una verifica molto più rapida"
+  data-cap-i18n-verify-aria-label="Premi per confermare che non sei un robot"
+  data-cap-i18n-verifying-aria-label="Verifica in corso, attendi"
+  data-cap-i18n-verified-aria-label="Verifica completata, puoi proseguire"
+  data-cap-i18n-error-aria-label="Si è verificato un errore, riprova"
+{%- endif %}
+></cap-widget>

@@ -6,10 +6,10 @@ RER Captcha è una soluzione di protezione captcha basata sul framework open-sou
 
 Il progetto è composto da due componenti principali:
 
-1.  **[capjs](file:///home/mauro/Work/RER/rercaptcha/capjs/README.md)**: Il servizio core che genera e verifica i captcha.
-2.  **[demo001](file:///home/mauro/Work/RER/rercaptcha/demo001/README.md)**: Un'applicazione web Python/Flask che mostra come integrare CapJS in un form reale.
+1.  **[capjs](capjs/README.md)**: Il servizio core che genera e verifica i captcha.
+2.  **[demo001](demo001/README.md)**: Un'applicazione web Python/Flask che mostra come integrare CapJS in form reali e include la guida completa di integrazione (`/guida`).
 
-I servizi sono orchestrati tramite Docker Compose per semplificare lo sviluppo e il deployment locale.
+I servizi sono orchestrati tramite Docker Compose per semplificare lo sviluppo e il deployment locale. Il repository include anche `demo`, un prototipo più semplice mantenuto come riferimento minimale.
 
 ## Guida alla Configurazione Rapida
 
@@ -26,56 +26,68 @@ CapJS richiede una coppia di chiavi (`SITE_KEY` e `SECRET_KEY`) per funzionare. 
 
 ```bash
 # Avvia il core e il tool di inizializzazione
-docker-compose up -d capjs demo-init
+docker compose up -d capjs demo-init
 ```
 
 Attendi qualche secondo, quindi recupera le chiavi generate:
 
 ```bash
-cat shared/site.json
+cat shared/keys.json
 ```
 
 L'output sarà simile a questo:
 
 ```json
 {
-  "site_key": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "secret_key": "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
+  "siteKey": "xxxxxxxxxx",
+  "secretKey": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+  "siteKeyShortTTL": "zzzzzzzzzz",
+  "secretKeyShortTTL": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww"
 }
 ```
 
-### 3. Configurazione della Demo
+(Le due chiavi `*ShortTTL` servono solo alla pagina `/errori` di demo001 per
+dimostrare la scadenza di un token; non sono necessarie in un'installazione
+reale.)
 
-Aggiorna il file `compose.yml` (o crea un file `.env` se supportato) con le chiavi ottenute.
+### 3. Avvio della Demo
+
+`demo001` legge automaticamente le chiavi da `shared/keys.json` quando le
+variabili `SITE_KEY`/`SECRET_KEY` non sono valorizzate: non serve modificare
+`compose.yml` per l'uso in locale.
+
+```bash
+docker compose up -d demo001
+```
+
+Per un deployment reale, valorizza invece in `compose.yml` (o in un file
+`.env`) le variabili d'ambiente del servizio `demo001`:
 
 ```yaml
 services:
   demo001:
-    build: ./demo001
-    ports:
-      - "5001:5000"
     environment:
       SITE_KEY: "LA_TUA_SITE_KEY"
       SECRET_KEY: "LA_TUA_SECRET_KEY"
-    depends_on:
-      - capjs
 ```
 
-### 4. Avvio della Demo
+### 4. Accesso
 
-```bash
-docker-compose up -d demo001
-```
-
-### 5. Accesso
-
-Visita `http://localhost:5001` per vedere il captcha in azione.
+Visita `http://localhost:5001` per vedere il captcha in azione, oppure
+direttamente `http://localhost:5001/guida` per la guida completa di
+integrazione.
 
 ## Documentazione Componenti
 
-- [Documentazione Servizio CapJS](file:///home/mauro/Work/RER/rercaptcha/capjs/README.md)
-- [Documentazione Demo Flask](file:///home/mauro/Work/RER/rercaptcha/demo001/README.md)
+- [Documentazione Servizio CapJS](capjs/README.md)
+- [Documentazione Demo Flask](demo001/README.md)
 
 ## Crediti e Licenza
 
-RER Captcha si basa su [CapJS](https://github.com/tiagozip/cap) distribuito sotto licenza **Apache-2.0**.  Copyright ©2025 - present tiago.
+RER Captcha è distribuito sotto licenza **Apache-2.0** (vedi [LICENSE](LICENSE)).
+
+Il servizio core si basa su [CapJS](https://github.com/tiagozip/cap),
+anch'esso Apache-2.0 (Copyright ©2025 - present tiago). Il progetto include
+inoltre altre librerie open source (Flask, Bootstrap, Pygments, Elysia,
+ecc.): l'elenco completo con relative licenze è in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
