@@ -84,4 +84,10 @@ integrazione.
 
 ## Crediti e Licenza
 
-RER Captcha si basa su [CapJS](https://github.com/tiagozip/cap) distribuito sotto licenza **Apache-2.0**.  Copyright ©2025 - present tiago.
+RER Captcha è distribuito sotto licenza **Apache-2.0** (vedi [LICENSE](LICENSE)).
+
+Il servizio core si basa su [CapJS](https://github.com/tiagozip/cap),
+anch'esso Apache-2.0 (Copyright ©2025 - present tiago). Il progetto include
+inoltre altre librerie open source (Flask, Bootstrap, Pygments, Elysia,
+ecc.): l'elenco completo con relative licenze è in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
